@@ -66,7 +66,7 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
                   <View style={styles.cheapestBadge}>
                     <Ionicons name="trophy" size={16} color={colors.success} />
                     <Text style={styles.cheapestText}>
-                      הזול ביותר: {comparison.cheapest.name} - ₪
+                      הזול ביותר: {comparison.cheapest.chain_name || comparison.cheapest.name} - ₪
                       {comparison.cheapest.total?.toFixed(2)}
                     </Text>
                   </View>
@@ -74,14 +74,33 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
               </View>
 
               {/* Chain Comparison */}
-              {comparison.chains?.map((chain, index) => (
-                <View key={chain.chain_id || index} style={styles.chainCard}>
-                  <View style={styles.chainHeader}>
-                    <Text style={styles.chainName}>{chain.chain_name}</Text>
-                    <Text style={styles.chainTotal}>
-                      ₪{chain.total?.toFixed(2) || '0.00'}
-                    </Text>
-                  </View>
+              {comparison.chains?.map((chain, index) => {
+                const isCheapest = comparison.cheapest &&
+                  (chain.chain_id === comparison.cheapest.chain_id ||
+                   chain.chain_name === comparison.cheapest.chain_name);
+
+                return (
+                  <View
+                    key={chain.chain_id || index}
+                    style={[
+                      styles.chainCard,
+                      isCheapest && styles.chainCardCheapest
+                    ]}
+                  >
+                    <View style={styles.chainHeader}>
+                      <View style={styles.chainNameContainer}>
+                        <Text style={styles.chainName}>{chain.chain_name}</Text>
+                        {isCheapest && (
+                          <Ionicons name="checkmark-circle" size={18} color={colors.success} style={{ marginLeft: 6 }} />
+                        )}
+                      </View>
+                      <Text style={[
+                        styles.chainTotal,
+                        isCheapest && styles.chainTotalCheapest
+                      ]}>
+                        ₪{chain.total?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
 
                   {/* Available Items */}
                   {chain.items?.length > 0 && (
@@ -113,8 +132,9 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
                       ))}
                     </View>
                   )}
-                </View>
-              ))}
+                  </View>
+                );
+              })}
 
               {(!comparison.chains || comparison.chains.length === 0) && (
                 <View style={styles.emptyContainer}>
@@ -207,6 +227,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  chainCardCheapest: {
+    borderColor: colors.success,
+    borderWidth: 2,
+    backgroundColor: colors.success + '08',
+  },
   chainHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -216,8 +241,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  chainNameContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+  },
   chainName: { fontSize: 16, fontWeight: '700', textAlign: 'right' },
   chainTotal: { fontSize: 18, fontWeight: '700', color: colors.primary },
+  chainTotalCheapest: { color: colors.success },
   itemsList: { gap: spacing.xs },
   itemRow: {
     flexDirection: 'row-reverse',

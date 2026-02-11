@@ -14,6 +14,7 @@ export default function StoreScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const limit = 12;
   const offsetRef = useRef(0);
 
@@ -30,6 +31,7 @@ export default function StoreScreen({ navigation }) {
       const params = { limit, offset: currentOffset };
       if (selectedCategory) params.category = selectedCategory;
       if (sortBy) params.sort = sortBy;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
 
       const { data } = await api.get('/api/store', { params });
       const newProducts = Array.isArray(data.products) ? data.products : [];
@@ -48,13 +50,13 @@ export default function StoreScreen({ navigation }) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [selectedCategory, sortBy]);
+  }, [selectedCategory, sortBy, searchQuery]);
 
   useEffect(() => {
     setLoading(true);
     offsetRef.current = 0;
     fetchProducts(true);
-  }, [selectedCategory, sortBy]);
+  }, [selectedCategory, sortBy, searchQuery]);
 
   const handleEndReached = () => {
     if (hasMore && !loadingMore) fetchProducts();
@@ -91,6 +93,24 @@ export default function StoreScreen({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>חנות</Text>
       <Text style={styles.subtitle}>חפש והשווה מחירים בין רשתות</Text>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search-outline" size={20} color={colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="חפש מוצר..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          textAlign="right"
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Filters */}
       {categories.length > 0 && (
@@ -150,6 +170,23 @@ const styles = StyleSheet.create({
   loadingText: { color: colors.textMuted, marginTop: spacing.md },
   title: { fontSize: 20, fontWeight: '700', textAlign: 'right' },
   subtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.md },
+  searchContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  searchIcon: { marginLeft: spacing.xs },
+  searchInput: {
+    flex: 1,
+    padding: spacing.sm,
+    fontSize: 15,
+  },
+  clearBtn: { padding: 4 },
   filterList: { maxHeight: 40, marginBottom: spacing.md },
   filterChip: {
     paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full,
