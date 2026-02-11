@@ -22,8 +22,11 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
 import TemplatesScreen from './src/screens/TemplatesScreen';
 
-// Force RTL for Hebrew
-I18nManager.forceRTL(true);
+// Force RTL for Hebrew (only when not already RTL to avoid iOS crash)
+I18nManager.allowRTL(true);
+if (!I18nManager.isRTL) {
+  I18nManager.forceRTL(true);
+}
 
 const AuthStack = createNativeStackNavigator();
 const ListsStack = createNativeStackNavigator();

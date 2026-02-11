@@ -41,13 +41,15 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  // Derive isLinkedChild and register socket room when user changes
+  // Derive isLinkedChild and manage socket connection when user changes
   useEffect(() => {
     if (user) {
       setIsLinkedChild(!!user.parent_id);
+      if (!socket.connected) socket.connect();
       socket.emit('register_user', user.id);
     } else {
       setIsLinkedChild(false);
+      if (socket.connected) socket.disconnect();
     }
   }, [user]);
 

@@ -1,10 +1,12 @@
 import { io } from 'socket.io-client';
 
-const BASE_URL = 'http://10.0.2.2:3000'; // Match api.js URL
+// Tailscale IP of this machine (ron-pc) — must match api.js
+const BASE_URL = 'http://100.124.65.107:3000';
 
 const socket = io(BASE_URL, {
-  autoConnect: true,
+  autoConnect: false,
   transports: ['websocket'],
+  reconnectionAttempts: 5,
 });
 
 export default socket;

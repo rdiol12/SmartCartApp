@@ -1,10 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Change this to your server URL
-const BASE_URL = 'http://10.0.2.2:3000'; // Android emulator → localhost
-// const BASE_URL = 'http://localhost:3000'; // iOS simulator
-// const BASE_URL = 'http://YOUR_IP:3000'; // Physical device
+// Tailscale IP of this machine (ron-pc)
+const BASE_URL = 'http://100.124.65.107:3000';
 
 let accessToken = null;
 
