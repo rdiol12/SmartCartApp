@@ -8,7 +8,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { colors, spacing, radius } from '../theme';
@@ -16,22 +16,17 @@ import { colors, spacing, radius } from '../theme';
 const { width } = Dimensions.get('window');
 
 const BarcodeScanner = ({ visible, onClose, onProductFound }) => {
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (visible) {
+    if (visible && !permission) {
       requestPermission();
     }
   }, [visible]);
 
-  const requestPermission = async () => {
-    const { status } = await BarCodeScanner.requestPermissionsAsync();
-    setHasPermission(status === 'granted');
-  };
-
-  const handleBarCodeScanned = async ({ type, data }) => {
+  const handleBarcodeScanned = async ({ data }) => {
     if (scanned || loading) return;
 
     setScanned(true);
@@ -84,7 +79,7 @@ const BarcodeScanner = ({ visible, onClose, onProductFound }) => {
 
   if (!visible) return null;
 
-  if (hasPermission === null) {
+  if (!permission) {
     return (
       <Modal visible={visible} transparent animationType="slide">
         <View style={styles.container}>
@@ -96,7 +91,7 @@ const BarcodeScanner = ({ visible, onClose, onProductFound }) => {
     );
   }
 
-  if (hasPermission === false) {
+  if (!permission.granted) {
     return (
       <Modal visible={visible} transparent animationType="slide">
         <View style={styles.container}>
@@ -128,8 +123,11 @@ const BarcodeScanner = ({ visible, onClose, onProductFound }) => {
         </View>
 
         {/* Scanner */}
-        <BarCodeScanner
-          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+        <CameraView
+          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93'],
+          }}
           style={StyleSheet.absoluteFillObject}
         />
 
