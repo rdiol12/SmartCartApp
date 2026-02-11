@@ -12,6 +12,7 @@ import InviteLinkModal from '../components/InviteLinkModal';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
+import BarcodeScanner from '../components/BarcodeScanner';
 import { colors, spacing, radius } from '../theme';
 
 export default function ListDetailScreen({ route, navigation }) {
@@ -33,6 +34,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [showPriceComparison, setShowPriceComparison] = useState(false);
   const [showChildAccess, setShowChildAccess] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
 
   useEffect(() => {
@@ -130,6 +132,12 @@ export default function ListDetailScreen({ route, navigation }) {
     setItemName(product.item_name || product.name || '');
     if (product.price) setItemPrice(String(product.price));
     setShowSearch(false);
+  };
+
+  const handleBarcodeScanned = (product) => {
+    setItemName(product.item_name || '');
+    if (product.price) setItemPrice(String(product.price));
+    setShowScanner(false);
   };
 
   if (loading) {
@@ -237,6 +245,9 @@ export default function ListDetailScreen({ route, navigation }) {
           <TouchableOpacity style={styles.searchBtn} onPress={() => setShowSearch(!showSearch)}>
             <Ionicons name="search-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.searchBtn} onPress={() => setShowScanner(true)}>
+            <Ionicons name="barcode-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
         </View>
         {requestMsg ? (
           <Text style={styles.requestMsg}>{requestMsg}</Text>
@@ -283,6 +294,11 @@ export default function ListDetailScreen({ route, navigation }) {
         onClose={() => setShowSaveTemplate(false)}
         listId={listId}
         listName={listName}
+      />
+      <BarcodeScanner
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onProductFound={handleBarcodeScanned}
       />
     </KeyboardAvoidingView>
   );

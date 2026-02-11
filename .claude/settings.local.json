@@ -14,7 +14,8 @@
       "Bash(tailscale up:*)",
       "Bash(timeout /t 5 /nobreak)",
       "Bash(curl:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

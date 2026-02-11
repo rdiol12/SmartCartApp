@@ -8,20 +8,30 @@ import { colors, spacing, radius } from '../theme';
 export default function HomeScreen({ navigation }) {
   const { user, isLinkedChild } = useContext(AuthContext);
   const [lists, setLists] = useState([]);
+  const [stats, setStats] = useState({ totalLists: 0, totalItems: 0, completionRate: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLists = async () => {
+    const fetchData = async () => {
       try {
         const { data } = await api.get('/api/lists');
-        setLists(data.lists.slice(0, 6));
+        const allLists = data.lists || [];
+        setLists(allLists.slice(0, 6));
+
+        // Calculate stats
+        const totalLists = allLists.length;
+        const totalItems = allLists.reduce((sum, list) => sum + (list.item_count || 0), 0);
+        const completedItems = allLists.reduce((sum, list) => sum + (list.completed_count || 0), 0);
+        const completionRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+        setStats({ totalLists, totalItems, completionRate });
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
     };
-    fetchLists();
+    fetchData();
   }, []);
 
   return (
@@ -30,6 +40,35 @@ export default function HomeScreen({ navigation }) {
       <Text style={styles.subtitle}>
         {isLinkedChild ? 'בחר רשימה כדי לבקש מוצרים' : 'מה קונים היום?'}
       </Text>
+
+      {/* Stats Cards */}
+      {!isLinkedChild && !loading && (
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="list-outline" size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.statValue}>{stats.totalLists}</Text>
+            <Text style={styles.statLabel}>רשימות</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
+              <Ionicons name="basket-outline" size={24} color={colors.success} />
+            </View>
+            <Text style={styles.statValue}>{stats.totalItems}</Text>
+            <Text style={styles.statLabel}>פריטים</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#f59e0b15' }]}>
+              <Ionicons name="checkmark-circle-outline" size={24} color="#f59e0b" />
+            </View>
+            <Text style={styles.statValue}>{stats.completionRate}%</Text>
+            <Text style={styles.statLabel}>הושלמו</Text>
+          </View>
+        </View>
+      )}
 
       {/* Quick actions */}
       {!isLinkedChild && (
@@ -83,7 +122,40 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
   greeting: { fontSize: 22, fontWeight: '700', textAlign: 'right', marginTop: spacing.md },
-  subtitle: { fontSize: 14, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.xl },
+  subtitle: { fontSize: 14, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.md },
+  statsContainer: {
+    flexDirection: 'row-reverse',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
   actions: { flexDirection: 'row-reverse', gap: spacing.md, marginBottom: spacing.xl },
   actionCard: {
     flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg,
