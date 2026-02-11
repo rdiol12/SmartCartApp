@@ -50,7 +50,7 @@ const ListItemRow = ({ item, listId }) => {
               styles.name,
               (isChecked || isPaid) && styles.nameStrikethrough,
             ]}>
-              {item.item_name}
+              {item.itemName}
             </Text>
             {item.quantity > 1 && (
               <View style={styles.badgeMuted}>
@@ -77,8 +77,8 @@ const ListItemRow = ({ item, listId }) => {
                 שולם ע"י {item.paid_by_name}
               </Text>
             )}
-            {item.store_name && (
-              <Text style={styles.metaText}>{item.store_name}</Text>
+            {item.storeName && (
+              <Text style={styles.metaText}>{item.storeName}</Text>
             )}
           </View>
 
