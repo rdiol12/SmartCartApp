@@ -121,7 +121,8 @@ export default function ListDetailScreen({ route, navigation }) {
   };
 
   const handleSearchSelect = (product) => {
-    setItemName(product.name);
+    setItemName(product.item_name || product.name || '');
+    if (product.price) setItemPrice(String(product.price));
     setShowSearch(false);
   };
 

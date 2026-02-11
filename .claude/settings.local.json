@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth status:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx eas-cli --version)",
+      "Bash(npx eas-cli:*)",
+      "Bash(ipconfig:*)",
+      "Bash(tailscale ip:*)",
+      "Bash(tailscale status:*)",
+      "Bash(tailscale up:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(curl:*)",
+      "Bash(findstr:*)"
+    ]
+  }
+}

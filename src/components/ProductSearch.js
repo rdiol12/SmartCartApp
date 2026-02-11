@@ -16,14 +16,16 @@ const ProductSearch = ({ onSelect }) => {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const { data } = await api.get('/api/search', { params: { q: query } });
-        setResults(data);
+        const { data } = await api.get('/api/store', {
+          params: { q: query.trim(), limit: 8 }
+        });
+        setResults(Array.isArray(data.products) ? data.products : []);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
-    }, 400);
+    }, 350);
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -46,9 +48,9 @@ const ProductSearch = ({ onSelect }) => {
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.resultItem} onPress={() => onSelect(item)}>
-              <Text style={styles.resultName}>{item.name}</Text>
-              {item.manufacturer && (
-                <Text style={styles.resultMeta}>({item.manufacturer})</Text>
+              <Text style={styles.resultName}>{item.item_name}</Text>
+              {item.chain_name && (
+                <Text style={styles.resultMeta}>{item.chain_name}</Text>
               )}
             </TouchableOpacity>
           )}
