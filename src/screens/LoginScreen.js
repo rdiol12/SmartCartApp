@@ -71,6 +71,10 @@ export default function LoginScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={styles.forgotLink}>שכחת סיסמה?</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.link}>
             אין לך חשבון? <Text style={styles.linkBold}>הרשם כאן</Text>
@@ -114,6 +118,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.lg,
     fontSize: 13,
+  },
+  forgotLink: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: colors.primary,
+    marginBottom: spacing.md,
   },
   link: { textAlign: 'center', fontSize: 14, color: colors.textMuted },
   linkBold: { color: colors.primary, fontWeight: '600' },

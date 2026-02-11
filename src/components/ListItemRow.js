@@ -1,12 +1,16 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import socket from '../socket';
+import ItemComments from './ItemComments';
 import { colors, spacing, radius } from '../theme';
 
 const ListItemRow = ({ item, listId }) => {
   const { user } = useContext(AuthContext);
+  const [showComments, setShowComments] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState(item.note || '');
 
   const handleToggle = () => {
     socket.emit('toggle_item', { itemId: item.id, listId, isChecked: !item.is_checked });
@@ -22,6 +26,18 @@ const ListItemRow = ({ item, listId }) => {
     } else {
       socket.emit('mark_paid', { itemId: item.id, listId, userId: user.id });
     }
+  };
+
+  const handleSaveNote = () => {
+    if (noteText !== item.note) {
+      socket.emit('update_note', { itemId: item.id, listId, note: noteText.trim() });
+    }
+    setEditingNote(false);
+  };
+
+  const handleCancelNote = () => {
+    setNoteText(item.note || '');
+    setEditingNote(false);
   };
 
   const isPaid = !!item.paid_by;
@@ -82,13 +98,42 @@ const ListItemRow = ({ item, listId }) => {
             )}
           </View>
 
-          {item.note ? (
-            <Text style={styles.note}>{item.note}</Text>
-          ) : null}
+          {editingNote ? (
+            <View style={styles.noteEditor}>
+              <TextInput
+                style={styles.noteInput}
+                value={noteText}
+                onChangeText={setNoteText}
+                placeholder="הוסף הערה..."
+                textAlign="right"
+                multiline
+                autoFocus
+              />
+              <View style={styles.noteActions}>
+                <TouchableOpacity onPress={handleSaveNote} style={styles.noteSaveBtn}>
+                  <Text style={styles.noteSaveBtnText}>שמור</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleCancelNote}>
+                  <Text style={styles.noteCancelText}>ביטול</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : item.note ? (
+            <TouchableOpacity onPress={() => setEditingNote(true)}>
+              <Text style={styles.note}>{item.note}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => setEditingNote(true)}>
+              <Text style={styles.addNoteBtn}>+ הוסף הערה</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Actions */}
         <View style={styles.actions}>
+          <TouchableOpacity onPress={() => setShowComments(!showComments)} style={styles.iconBtn}>
+            <Ionicons name="chatbubble-outline" size={18} color={showComments ? colors.primary : colors.textMuted} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleMarkPaid} style={[styles.iconBtn, isPaid && styles.iconBtnActive]}>
             <Ionicons name="cash-outline" size={18} color={isPaid ? colors.success : colors.textMuted} />
           </TouchableOpacity>
@@ -97,6 +142,13 @@ const ListItemRow = ({ item, listId }) => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Comments Section */}
+      {showComments && (
+        <View style={styles.commentsSection}>
+          <ItemComments itemId={item.id} listId={listId} />
+        </View>
+      )}
     </View>
   );
 };
@@ -128,6 +180,43 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 4 },
   iconBtn: { padding: 6, borderRadius: radius.sm },
   iconBtnActive: { backgroundColor: colors.success + '15' },
+  noteEditor: { marginTop: spacing.sm },
+  noteInput: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    fontSize: 12,
+    maxHeight: 80,
+    textAlign: 'right',
+  },
+  noteActions: {
+    flexDirection: 'row-reverse',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  noteSaveBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+  },
+  noteSaveBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  noteCancelText: { fontSize: 12, color: colors.textMuted, paddingVertical: spacing.xs },
+  addNoteBtn: {
+    fontSize: 11,
+    color: colors.primary,
+    textAlign: 'right',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  commentsSection: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
 });
 
 export default ListItemRow;

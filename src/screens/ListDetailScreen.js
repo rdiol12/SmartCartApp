@@ -9,6 +9,9 @@ import socket from '../socket';
 import ListItemRow from '../components/ListItemRow';
 import ProductSearch from '../components/ProductSearch';
 import InviteLinkModal from '../components/InviteLinkModal';
+import PriceComparisonModal from '../components/PriceComparisonModal';
+import ChildAccessModal from '../components/ChildAccessModal';
+import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
 import { colors, spacing, radius } from '../theme';
 
 export default function ListDetailScreen({ route, navigation }) {
@@ -27,6 +30,9 @@ export default function ListDetailScreen({ route, navigation }) {
 
   const [showSearch, setShowSearch] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showPriceComparison, setShowPriceComparison] = useState(false);
+  const [showChildAccess, setShowChildAccess] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
 
   useEffect(() => {
@@ -152,10 +158,21 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
         {!isLinkedChild && (
           <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowPriceComparison(true)}>
+              <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowSaveTemplate(true)}>
+              <Ionicons name="copy-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
             {userRole === 'admin' && (
-              <TouchableOpacity style={styles.headerBtn} onPress={() => setShowInvite(true)}>
-                <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={styles.headerBtn} onPress={() => setShowChildAccess(true)}>
+                  <Ionicons name="people-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerBtn} onPress={() => setShowInvite(true)}>
+                  <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              </>
             )}
           </View>
         )}
@@ -249,8 +266,24 @@ export default function ListDetailScreen({ route, navigation }) {
         />
       )}
 
-      {/* Invite modal */}
+      {/* Modals */}
       <InviteLinkModal visible={showInvite} onClose={() => setShowInvite(false)} listId={listId} />
+      <PriceComparisonModal
+        visible={showPriceComparison}
+        onClose={() => setShowPriceComparison(false)}
+        listId={listId}
+      />
+      <ChildAccessModal
+        visible={showChildAccess}
+        onClose={() => setShowChildAccess(false)}
+        listId={listId}
+      />
+      <SaveAsTemplateModal
+        visible={showSaveTemplate}
+        onClose={() => setShowSaveTemplate(false)}
+        listId={listId}
+        listName={listName}
+      />
     </KeyboardAvoidingView>
   );
 }

@@ -11,6 +11,9 @@ import { colors } from './src/theme';
 // Auth screens
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
+import JoinListScreen from './src/screens/JoinListScreen';
 
 // Main screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -39,6 +42,9 @@ function AuthNavigator() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <AuthStack.Screen name="JoinList" component={JoinListScreen} />
     </AuthStack.Navigator>
   );
 }
