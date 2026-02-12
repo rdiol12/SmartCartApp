@@ -16,6 +16,7 @@ import QuantityPicker from '../components/QuantityPicker';
 import RecentItems from '../components/RecentItems';
 import VoiceInput from '../components/VoiceInput';
 import MultiSelectBar from '../components/MultiSelectBar';
+import TemplatesModal from '../components/TemplatesModal';
 import { addToRecent } from '../utils/recentItems';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
@@ -43,6 +44,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [showPriceComparison, setShowPriceComparison] = useState(false);
   const [showChildAccess, setShowChildAccess] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
   const [sortBy, setSortBy] = useState('default');
@@ -220,8 +222,8 @@ export default function ListDetailScreen({ route, navigation }) {
             <TouchableOpacity style={styles.headerBtn} onPress={() => setShowPriceComparison(true)}>
               <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowSaveTemplate(true)}>
-              <Ionicons name="copy-outline" size={18} color={colors.primary} />
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowTemplates(true)}>
+              <Ionicons name="albums-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
             {userRole === 'admin' && (
               <>
@@ -410,6 +412,24 @@ export default function ListDetailScreen({ route, navigation }) {
         visible={showScanner}
         onClose={() => setShowScanner(false)}
         onProductFound={handleBarcodeScanned}
+      />
+      <TemplatesModal
+        visible={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        currentItems={items}
+        onLoadTemplate={(templateItems) => {
+          templateItems.forEach(item => {
+            socket.emit('send_item', {
+              listId: parseInt(listId),
+              itemName: item.itemname,
+              price: item.price || null,
+              quantity: item.quantity || 1,
+              addby: user.id,
+              addat: new Date(),
+              updatedat: new Date(),
+            });
+          });
+        }}
       />
     </KeyboardAvoidingView>
   );
