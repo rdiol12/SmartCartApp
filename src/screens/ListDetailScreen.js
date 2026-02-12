@@ -146,15 +146,53 @@ export default function ListDetailScreen({ route, navigation }) {
   };
 
   const handleSearchSelect = (product) => {
-    setItemName(product.item_name || product.name || '');
+    setItemName(product.name || product.item_name || product.product_name || '');
     if (product.price) setItemPrice(String(product.price));
     setShowSearch(false);
   };
 
   const handleBarcodeScanned = (product) => {
-    setItemName(product.item_name || '');
+    setItemName(product.name || product.item_name || product.product_name || '');
     if (product.price) setItemPrice(String(product.price));
     setShowScanner(false);
+  };
+
+  const handleSelectRecent = (item) => {
+    setItemName(item.itemname);
+    setItemQty(String(item.quantity));
+    setItemPrice(String(item.price || ''));
+  };
+
+  const toggleItemSelection = (itemId) => {
+    setSelectedItems(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleMultiSelectDelete = () => {
+    selectedItems.forEach(itemId => {
+      socket.emit('delete_item', { itemId, listId });
+    });
+    setSelectedItems([]);
+    setMultiSelectMode(false);
+  };
+
+  const handleMultiSelectCheck = () => {
+    selectedItems.forEach(itemId => {
+      socket.emit('toggle_item', { itemId, listId, isChecked: true });
+    });
+    setSelectedItems([]);
+    setMultiSelectMode(false);
+  };
+
+  const handleMultiSelectUncheck = () => {
+    selectedItems.forEach(itemId => {
+      socket.emit('toggle_item', { itemId, listId, isChecked: false });
+    });
+    setSelectedItems([]);
+    setMultiSelectMode(false);
   };
 
   if (loading) {
