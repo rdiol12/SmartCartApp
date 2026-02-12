@@ -62,6 +62,7 @@ export default function ListDetailScreen({ route, navigation }) {
         setItems(data.items);
         setMembers(data.members);
         setUserRole(data.userRole);
+        console.log('User Role:', data.userRole); // Debug log
       } catch (err) {
         console.error(err);
         if (err.response?.status === 403) navigation.goBack();
@@ -146,7 +147,7 @@ export default function ListDetailScreen({ route, navigation }) {
   };
 
   const handleSearchSelect = (product) => {
-    setItemName(product.name || product.item_name || product.product_name || '');
+    setItemName(product.item_name || product.name || product.product_name || '');
     if (product.price) setItemPrice(String(product.price));
     setShowSearch(false);
   };

@@ -43,14 +43,17 @@ const ProductSearch = ({ onSelect }) => {
       {results.length > 0 && (
         <FlatList
           data={results}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item, index) => String(item.item_id || item.id || index)}
           style={styles.results}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.resultItem} onPress={() => onSelect(item)}>
-              <Text style={styles.resultName}>{item.name || item.item_name}</Text>
-              {(item.chainname || item.chain_name) && (
-                <Text style={styles.resultMeta}>{item.chainname || item.chain_name}</Text>
+              <Text style={styles.resultName}>{item.item_name || item.name}</Text>
+              {item.chain_name && (
+                <Text style={styles.resultMeta}>{item.chain_name}</Text>
+              )}
+              {item.price && (
+                <Text style={styles.price}>₪{Number(item.price).toFixed(2)}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -70,8 +73,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm,
     padding: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface,
   },
-  resultName: { fontSize: 13, fontWeight: '500', textAlign: 'right' },
-  resultMeta: { fontSize: 11, color: colors.textMuted },
+  resultName: { fontSize: 13, fontWeight: '500', textAlign: 'right', flex: 1 },
+  resultMeta: { fontSize: 11, color: colors.textMuted, textAlign: 'right' },
+  price: { fontSize: 12, fontWeight: '600', color: colors.primary, marginTop: 2, textAlign: 'right' },
 });
 
 export default ProductSearch;
