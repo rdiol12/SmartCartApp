@@ -21,10 +21,10 @@ const BarcodeScanner = ({ visible, onClose, onProductFound }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (visible && !permission) {
+    if (visible && permission === null) {
       requestPermission();
     }
-  }, [visible]);
+  }, [visible, permission]);
 
   const handleBarcodeScanned = async ({ data }) => {
     if (scanned || loading) return;

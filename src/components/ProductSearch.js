@@ -16,10 +16,10 @@ const ProductSearch = ({ onSelect }) => {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const { data } = await api.get('/api/store', {
-          params: { q: query.trim(), limit: 8 }
+        const { data } = await api.get('/api/search', {
+          params: { q: query.trim() }
         });
-        setResults(Array.isArray(data.products) ? data.products : []);
+        setResults(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error(err);
       } finally {
