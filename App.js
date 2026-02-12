@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import NotificationBell from './src/components/NotificationBell';
 import { colors } from './src/theme';
 
@@ -164,8 +165,10 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppNavigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

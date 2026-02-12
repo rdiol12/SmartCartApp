@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,6 +13,7 @@ export default function MyListsScreen({ navigation }) {
   const { user, isLinkedChild } = useContext(AuthContext);
   const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -29,7 +30,14 @@ export default function MyListsScreen({ navigation }) {
       console.error(e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchLists();
+    if (isLinkedChild) fetchRequests();
   };
 
   const fetchRequests = async () => {
@@ -113,6 +121,9 @@ export default function MyListsScreen({ navigation }) {
             data={lists}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{ paddingBottom: spacing.xl }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+            }
             ListEmptyComponent={
               <Text style={styles.empty}>{isLinkedChild ? 'ההורים עוד לא יצרו רשימות' : 'אין רשימות עדיין'}</Text>
             }
@@ -143,8 +154,11 @@ export default function MyListsScreen({ navigation }) {
           data={requests}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={{ paddingBottom: spacing.xl }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          }
           ListEmptyComponent={<Text style={styles.empty}>אין בקשות עדיין</Text>}
-          renderItem={({ item }) => (
+          renderItem={({ item}) => (
             <View style={[styles.requestCard, { borderRightColor: statusColor(item.status), borderRightWidth: 3 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.requestName}>{item.item_name}{item.quantity > 1 ? ` x${item.quantity}` : ''}</Text>

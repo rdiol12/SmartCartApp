@@ -9,6 +9,7 @@ import socket from '../socket';
 import ListItemRow from '../components/ListItemRow';
 import ProductSearch from '../components/ProductSearch';
 import InviteLinkModal from '../components/InviteLinkModal';
+import ListStats from '../components/ListStats';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
@@ -198,6 +199,11 @@ export default function ListDetailScreen({ route, navigation }) {
           </View>
         </View>
       )}
+
+      {/* List Stats */}
+      <View style={{ paddingHorizontal: spacing.md }}>
+        <ListStats items={items} />
+      </View>
 
       {/* Add Item Form */}
       <View style={styles.addForm}>
