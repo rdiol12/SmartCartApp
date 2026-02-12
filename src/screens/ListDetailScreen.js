@@ -23,9 +23,30 @@ import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import ReceiptScanner from '../components/ReceiptScanner';
+import QRShareModal from '../components/QRShareModal';
+import ActiveViewers from '../components/ActiveViewers';
+import ActivityLog from '../components/ActivityLog';
+import ListChat from '../components/ListChat';
 import { colors, spacing, radius } from '../theme';
 import { shareList, copyToClipboard } from '../utils/exportList';
 import { categorizeItem, categories } from '../utils/categories';
+
+// Store route aisle order — maps category names to aisle numbers
+const AISLE_ORDER = {
+  'פירות וירקות': 1,
+  'חלב ומוצריו': 2,
+  'לחם ומאפים': 3,
+  'בשר ודגים': 4,
+  'מוצרי בסיס': 5,
+  'חטיפים': 6,
+  'משקאות': 6,
+  'ניקיון וטיפוח': 7,
+  'אחר': 8,
+};
+
+const getAisleNumber = (categoryName) => {
+  return AISLE_ORDER[categoryName] || 8;
+};
 
 export default function ListDetailScreen({ route, navigation }) {
   const { listId, listName } = route.params;
@@ -49,6 +70,10 @@ export default function ListDetailScreen({ route, navigation }) {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
+  const [showQRShare, setShowQRShare] = useState(false);
+  const [qrInviteLink, setQrInviteLink] = useState('');
+  const [showActivityLog, setShowActivityLog] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
   const [sortBy, setSortBy] = useState('default');
   const [filter, setFilter] = useState('all');
@@ -103,6 +128,9 @@ export default function ListDetailScreen({ route, navigation }) {
     const onQuantityUpdated = ({ itemId, quantity }) => {
       setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, quantity } : i)));
     };
+    const onItemAssigned = ({ itemId, assignedTo, assignedToName }) => {
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, assigned_to: assignedTo, assigned_to_name: assignedToName } : i)));
+    };
 
     socket.on('receive_item', onReceiveItem);
     socket.on('item_status_changed', onItemStatusChanged);
@@ -111,6 +139,7 @@ export default function ListDetailScreen({ route, navigation }) {
     socket.on('item_paid', onItemPaid);
     socket.on('item_unpaid', onItemUnpaid);
     socket.on('quantity_updated', onQuantityUpdated);
+    socket.on('item_assigned', onItemAssigned);
 
     return () => {
       socket.off('receive_item', onReceiveItem);
@@ -120,6 +149,7 @@ export default function ListDetailScreen({ route, navigation }) {
       socket.off('item_paid', onItemPaid);
       socket.off('item_unpaid', onItemUnpaid);
       socket.off('quantity_updated', onQuantityUpdated);
+      socket.off('item_assigned', onItemAssigned);
     };
   }, [listId]);
 
@@ -270,6 +300,16 @@ export default function ListDetailScreen({ route, navigation }) {
     );
   };
 
+  const handleOpenQRShare = async () => {
+    try {
+      const { data } = await api.post(`/api/lists/${listId}/invite`);
+      setQrInviteLink(data.inviteLink);
+      setShowQRShare(true);
+    } catch (err) {
+      Alert.alert('שגיאה', err.response?.data?.message || 'שגיאה ביצירת הקישור');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -367,6 +407,15 @@ export default function ListDetailScreen({ route, navigation }) {
     displayItems = [...displayItems].sort((a, b) => ((b.is_checked || b.paid_by) ? 1 : 0) - ((a.is_checked || a.paid_by) ? 1 : 0));
   } else if (sortBy === 'unchecked') {
     displayItems = [...displayItems].sort((a, b) => ((a.is_checked || a.paid_by) ? 1 : 0) - ((b.is_checked || b.paid_by) ? 1 : 0));
+  } else if (sortBy === 'route') {
+    displayItems = [...displayItems].sort((a, b) => {
+      const catA = categorizeItem(a.itemname).name;
+      const catB = categorizeItem(b.itemname).name;
+      const aisleA = getAisleNumber(catA);
+      const aisleB = getAisleNumber(catB);
+      if (aisleA !== aisleB) return aisleA - aisleB;
+      return a.itemname.localeCompare(b.itemname, 'he');
+    });
   }
 
   // Build section headers for category sort
@@ -382,11 +431,28 @@ export default function ListDetailScreen({ route, navigation }) {
     });
   }
 
+  // Build section headers for route sort
+  const routeHeaders = {};
+  if (sortBy === 'route') {
+    let lastAisle = null;
+    displayItems.forEach((item) => {
+      const cat = categorizeItem(item.itemname);
+      const aisle = getAisleNumber(cat.name);
+      if (aisle !== lastAisle) {
+        routeHeaders[item.id] = { aisle, cat };
+        lastAisle = aisle;
+      }
+    });
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Active Viewers */}
+      <ActiveViewers listId={listId} />
+
       {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -397,6 +463,12 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
         {!isLinkedChild && (
           <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowChat(true)}>
+              <Ionicons name="chatbubbles-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowActivityLog(true)}>
+              <Ionicons name="time-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.headerBtn} onPress={() => shareList(listName, items)}>
               <Ionicons name="share-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
@@ -413,6 +485,9 @@ export default function ListDetailScreen({ route, navigation }) {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerBtn} onPress={() => setShowInvite(true)}>
                   <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerBtn} onPress={handleOpenQRShare}>
+                  <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerBtn} onPress={handleDeleteList}>
                   <Ionicons name="trash-outline" size={18} color={colors.danger} />
@@ -472,7 +547,7 @@ export default function ListDetailScreen({ route, navigation }) {
       {/* Shopping Mode & List Controls */}
       {items.length > 0 && !multiSelectMode && (
         <>
-          <View style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs, flexDirection: 'row-reverse', gap: spacing.xs }}>
+          <View style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs, flexDirection: 'row-reverse', gap: spacing.xs, flexWrap: 'wrap' }}>
             <ShoppingModeToggle active={shoppingMode} onToggle={() => setShoppingMode(!shoppingMode)} />
             <TouchableOpacity
               style={styles.multiSelectBtn}
@@ -481,6 +556,15 @@ export default function ListDetailScreen({ route, navigation }) {
               <Ionicons name="checkmark-done-outline" size={16} color={colors.primary} />
               <Text style={styles.multiSelectText}>בחירה מרובה</Text>
             </TouchableOpacity>
+            {shoppingMode && (
+              <TouchableOpacity
+                style={[styles.multiSelectBtn, sortBy === 'route' && styles.routeBtnActive]}
+                onPress={() => setSortBy(sortBy === 'route' ? 'default' : 'route')}
+              >
+                <Ionicons name="map-outline" size={16} color={sortBy === 'route' ? '#fff' : colors.primary} />
+                <Text style={[styles.multiSelectText, sortBy === 'route' && styles.routeBtnTextActive]}>מסלול חנות</Text>
+              </TouchableOpacity>
+            )}
           </View>
           {!shoppingMode && (
             <ListControls
@@ -583,6 +667,17 @@ export default function ListDetailScreen({ route, navigation }) {
                   <Text style={[styles.categoryHeaderText, { color: categoryHeaders[item.id].color }]}>{categoryHeaders[item.id].name}</Text>
                 </View>
               )}
+              {routeHeaders[item.id] && (
+                <View style={styles.routeHeader}>
+                  <View style={styles.routeAisleBadge}>
+                    <Text style={styles.routeAisleNumber}>{routeHeaders[item.id].aisle}</Text>
+                  </View>
+                  <Text style={styles.routeHeaderIcon}>{routeHeaders[item.id].cat.icon}</Text>
+                  <Text style={[styles.routeHeaderText, { color: routeHeaders[item.id].cat.color }]}>
+                    {routeHeaders[item.id].cat.name}
+                  </Text>
+                </View>
+              )}
               <ListItemRow
                 item={item}
                 listId={listId}
@@ -590,6 +685,7 @@ export default function ListDetailScreen({ route, navigation }) {
                 multiSelectMode={multiSelectMode}
                 isSelected={selectedItems.includes(item.id)}
                 onSelect={toggleItemSelection}
+                members={members}
               />
             </View>
           )}
@@ -641,6 +737,21 @@ export default function ListDetailScreen({ route, navigation }) {
             });
           });
         }}
+      />
+      <QRShareModal
+        visible={showQRShare}
+        onClose={() => setShowQRShare(false)}
+        inviteLink={qrInviteLink}
+      />
+      <ActivityLog
+        visible={showActivityLog}
+        onClose={() => setShowActivityLog(false)}
+        listId={listId}
+      />
+      <ListChat
+        visible={showChat}
+        onClose={() => setShowChat(false)}
+        listId={listId}
       />
       {/* Undo delete toast */}
       {deletedItem && (
@@ -747,4 +858,37 @@ const styles = StyleSheet.create({
   },
   categoryHeaderIcon: { fontSize: 18 },
   categoryHeaderText: { fontSize: 14, fontWeight: '700' },
+  routeBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  routeBtnTextActive: {
+    color: '#fff',
+  },
+  routeHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  routeAisleBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeAisleNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  routeHeaderIcon: { fontSize: 18 },
+  routeHeaderText: { fontSize: 14, fontWeight: '700' },
 });

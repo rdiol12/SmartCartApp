@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 import { colors, spacing, radius } from '../theme';
+import HomeWidget from '../components/HomeWidget';
 
 export default function HomeScreen({ navigation }) {
   const { user, isLinkedChild } = useContext(AuthContext);
@@ -57,7 +58,7 @@ export default function HomeScreen({ navigation }) {
         {!isLinkedChild && pendingCount > 0 && (
           <TouchableOpacity 
             style={styles.pendingBtn}
-            onPress={() => navigation.navigate('PendingRequests')}
+            onPress={() => navigation.navigate('ListsTab', { screen: 'PendingRequests' })}
           >
             <Ionicons name="notifications" size={24} color={colors.warning} />
             <View style={styles.pendingBadge}>
@@ -115,6 +116,9 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Quick list widget */}
+      <HomeWidget navigation={navigation} />
 
       <Text style={styles.sectionTitle}>רשימות אחרונות</Text>
       {loading ? (

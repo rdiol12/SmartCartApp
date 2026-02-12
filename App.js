@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
-import { ThemeProvider } from './src/context/ThemeContext';
+import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
 import NotificationBell from './src/components/NotificationBell';
 import OfflineIndicator from './src/components/OfflineIndicator';
 import { colors } from './src/theme';
@@ -28,6 +28,9 @@ import FamilyScreen from './src/screens/FamilyScreen';
 import TemplatesScreen from './src/screens/TemplatesScreen';
 import PendingRequestsScreen from './src/screens/PendingRequestsScreen';
 import BudgetScreen from './src/screens/BudgetScreen';
+import GamificationScreen from './src/screens/GamificationScreen';
+import MealPlannerScreen from './src/screens/MealPlannerScreen';
+import PantryScreen from './src/screens/PantryScreen';
 
 // Force RTL for Hebrew (only when not already RTL to avoid iOS crash)
 I18nManager.allowRTL(true);
@@ -128,6 +131,9 @@ function ProfileNavigator() {
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'הגדרות' }} />
       <ProfileStack.Screen name="Family" component={FamilyScreen} options={{ title: 'ניהול משפחה' }} />
       <ProfileStack.Screen name="Templates" component={TemplatesScreen} options={{ title: 'תבניות' }} />
+      <ProfileStack.Screen name="Gamification" component={GamificationScreen} options={{ title: 'הישגים' }} />
+      <ProfileStack.Screen name="MealPlanner" component={MealPlannerScreen} options={{ title: 'תפריט שבועי' }} />
+      <ProfileStack.Screen name="Pantry" component={PantryScreen} options={{ title: 'המזווה שלי' }} />
     </ProfileStack.Navigator>
   );
 }
@@ -172,6 +178,7 @@ function MainTabs() {
 
 function AppNavigator() {
   const { user, loading } = useContext(AuthContext);
+  const { themeKey, isDark } = useContext(ThemeContext);
 
   if (loading) {
     return (
@@ -182,12 +189,12 @@ function AppNavigator() {
   }
 
   return (
-    <>
+    <View key={themeKey} style={{ flex: 1, backgroundColor: colors.bg }}>
       <NavigationContainer>
         {user ? <MainTabs /> : <AuthNavigator />}
       </NavigationContainer>
       <OfflineIndicator />
-    </>
+    </View>
   );
 }
 

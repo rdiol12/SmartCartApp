@@ -4,11 +4,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext';
 import api from '../api';
 import { colors, spacing, radius } from '../theme';
+import { LANGUAGES, getCurrentLang, saveLang } from '../utils/i18n';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, logoutAll, isLinkedChild } = useContext(AuthContext);
+  const { theme, toggleTheme, isDark } = useContext(ThemeContext);
+  const [language, setLanguage] = useState(getCurrentLang());
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -92,6 +96,32 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* Quick links */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="apps-outline" size={20} color={colors.primary} />
+          <Text style={styles.cardTitle}>כלים</Text>
+        </View>
+        <View style={styles.quickLinksGrid}>
+          <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Gamification')}>
+            <Ionicons name="trophy-outline" size={22} color={colors.warning} />
+            <Text style={styles.quickLinkText}>הישגים</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('MealPlanner')}>
+            <Ionicons name="restaurant-outline" size={22} color={colors.success} />
+            <Text style={styles.quickLinkText}>תפריט שבועי</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Pantry')}>
+            <Ionicons name="nutrition-outline" size={22} color={colors.danger} />
+            <Text style={styles.quickLinkText}>מזווה</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Templates')}>
+            <Ionicons name="copy-outline" size={22} color={colors.primary} />
+            <Text style={styles.quickLinkText}>תבניות</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Family management - parent only */}
       {!isLinkedChild && (
         <View style={styles.card}>
@@ -106,6 +136,57 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Theme toggle */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name={isDark ? 'moon' : 'sunny-outline'} size={20} color={colors.primary} />
+          <Text style={styles.cardTitle}>מראה</Text>
+        </View>
+        <View style={styles.themeRow}>
+          {[
+            { value: 'light', label: 'בהיר', icon: 'sunny-outline' },
+            { value: 'dark', label: 'כהה', icon: 'moon-outline' },
+            { value: 'auto', label: 'אוטומטי', icon: 'phone-portrait-outline' },
+          ].map(opt => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[styles.themeBtn, theme === opt.value && styles.themeBtnActive]}
+              onPress={() => toggleTheme(opt.value)}
+            >
+              <Ionicons name={opt.icon} size={18} color={theme === opt.value ? colors.primary : colors.textMuted} />
+              <Text style={[styles.themeBtnText, theme === opt.value && { color: colors.primary, fontWeight: '700' }]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Language selector */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="language-outline" size={20} color={colors.primary} />
+          <Text style={styles.cardTitle}>שפה / Language</Text>
+        </View>
+        <View style={styles.themeRow}>
+          {LANGUAGES.map(lang => (
+            <TouchableOpacity
+              key={lang.code}
+              style={[styles.themeBtn, language === lang.code && styles.themeBtnActive]}
+              onPress={async () => {
+                await saveLang(lang.code);
+                setLanguage(lang.code);
+                Alert.alert('שפה שונתה', 'יש להפעיל מחדש את האפליקציה כדי לראות את השינוי המלא');
+              }}
+            >
+              <Text style={[styles.themeBtnText, language === lang.code && { color: colors.primary, fontWeight: '700' }]}>
+                {lang.nativeLabel}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* Session management */}
       <View style={[styles.card, { borderColor: colors.danger + '30' }]}>
@@ -163,4 +244,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger, borderRadius: radius.md, padding: spacing.md,
   },
   dangerBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  themeRow: { flexDirection: 'row-reverse', gap: spacing.sm },
+  themeBtn: {
+    flex: 1, alignItems: 'center', gap: spacing.xs,
+    paddingVertical: spacing.md, borderRadius: radius.md,
+    backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
+  },
+  themeBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
+  themeBtnText: { fontSize: 12, color: colors.textMuted },
+  quickLinksGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  quickLink: {
+    width: '47%', alignItems: 'center', gap: spacing.xs,
+    paddingVertical: spacing.md, borderRadius: radius.md,
+    backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
+  },
+  quickLinkText: { fontSize: 12, fontWeight: '600', color: colors.text },
 });

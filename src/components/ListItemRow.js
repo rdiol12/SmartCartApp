@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Animated, Modal, FlatList } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -9,12 +9,13 @@ import { colors, spacing, radius } from '../theme';
 import { getCategoryIcon, getCategoryColor } from '../utils/categories';
 import SwipeableListItem from './SwipeableListItem';
 
-const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect }) => {
+const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, members = [] }) => {
   const { user } = useContext(AuthContext);
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(item.note || '');
   const [qty, setQty] = useState(item.quantity || 1);
+  const [showAssignPicker, setShowAssignPicker] = useState(false);
   const lastTapRef = useRef(0);
 
   // Fade-in animation
@@ -87,6 +88,28 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
   const handleCancelNote = () => {
     setNoteText(item.note || '');
     setEditingNote(false);
+  };
+
+  const handleAssignItem = (member) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    socket.emit('assign_item', {
+      itemId: item.id,
+      listId,
+      assignedTo: member ? member.user_id || member.id : null,
+    });
+    setShowAssignPicker(false);
+  };
+
+  const handleLongPressAssign = () => {
+    if (members.length > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setShowAssignPicker(true);
+    }
+  };
+
+  const getAssignedInitial = () => {
+    const name = item.assigned_to_name || '';
+    return name ? name.charAt(0) : '?';
   };
 
   const isPaid = !!item.paid_by;
@@ -196,11 +219,14 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
   }
 
   return (
+    <>
     <SwipeableListItem onDelete={handleDelete} onCheck={handleToggle} isChecked={isChecked}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={handleDoubleTap}
+          onLongPress={handleLongPressAssign}
+          delayLongPress={500}
           style={[
             styles.row,
             isPaid && styles.rowPaid,
@@ -234,11 +260,21 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
                 </Text>
               </View>
             )}
+            {item.assigned_to && (
+              <View style={styles.assignedBadge}>
+                <Text style={styles.assignedBadgeText}>{getAssignedInitial()}</Text>
+              </View>
+            )}
           </View>
 
           {/* Quantity stepper */}
           <View style={styles.metaRow}>
             <QuantityStepper />
+            {item.assigned_to_name && (
+              <Text style={[styles.metaText, { color: colors.primary, fontWeight: '500' }]}>
+                הוקצה ל{item.assigned_to_name}
+              </Text>
+            )}
             {item.added_by_name && (
               <Text style={styles.metaText}>
                 {item.added_by_name}
@@ -308,6 +344,49 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
     </TouchableOpacity>
       </Animated.View>
     </SwipeableListItem>
+
+    {/* Assignment Picker Modal */}
+    <Modal visible={showAssignPicker} transparent animationType="fade" onRequestClose={() => setShowAssignPicker(false)}>
+      <TouchableOpacity style={styles.assignOverlay} activeOpacity={1} onPress={() => setShowAssignPicker(false)}>
+        <View style={styles.assignModal}>
+          <Text style={styles.assignTitle}>הקצה פריט למשתמש</Text>
+          <Text style={styles.assignItemName}>"{item.itemname}"</Text>
+          <FlatList
+            data={members}
+            keyExtractor={(m) => String(m.user_id || m.id)}
+            style={{ maxHeight: 250 }}
+            renderItem={({ item: member }) => (
+              <TouchableOpacity
+                style={[
+                  styles.assignOption,
+                  (item.assigned_to === (member.user_id || member.id)) && styles.assignOptionActive,
+                ]}
+                onPress={() => handleAssignItem(member)}
+              >
+                <View style={styles.assignCircle}>
+                  <Text style={styles.assignCircleText}>
+                    {(member.first_name || '?').charAt(0)}
+                  </Text>
+                </View>
+                <Text style={styles.assignOptionText}>
+                  {member.first_name} {member.last_name || ''}
+                </Text>
+                {(item.assigned_to === (member.user_id || member.id)) && (
+                  <Ionicons name="checkmark" size={18} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            )}
+          />
+          {item.assigned_to && (
+            <TouchableOpacity style={styles.assignRemoveBtn} onPress={() => handleAssignItem(null)}>
+              <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+              <Text style={styles.assignRemoveText}>הסר הקצאה</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+    </>
   );
 };
 
@@ -396,6 +475,90 @@ const styles = StyleSheet.create({
   categoryIcon: {
     fontSize: 16,
     marginRight: spacing.xs,
+  },
+  // Assigned user badge
+  assignedBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  // Assignment picker modal
+  assignOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  assignModal: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    width: '80%',
+    maxWidth: 300,
+  },
+  assignTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  assignItemName: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  assignOption: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  assignOptionActive: {
+    backgroundColor: colors.primary + '10',
+    borderRadius: radius.sm,
+  },
+  assignCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignCircleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  assignOptionText: {
+    flex: 1,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  assignRemoveBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  assignRemoveText: {
+    fontSize: 13,
+    color: colors.danger,
+    fontWeight: '500',
   },
 });
 

@@ -13,6 +13,7 @@ const ListControls = ({ onSortChange, onFilterChange, onSearchChange }) => {
     { value: 'default', label: 'ברירת מחדל' },
     { value: 'name', label: 'שם (א-ת)' },
     { value: 'category', label: 'לפי מחלקה' },
+    { value: 'route', label: 'מסלול חנות' },
     { value: 'price', label: 'מחיר' },
     { value: 'checked', label: 'מסומנים תחילה' },
     { value: 'unchecked', label: 'לא מסומנים תחילה' },
