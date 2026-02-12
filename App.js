@@ -72,6 +72,11 @@ function ListsNavigator() {
         component={ListDetailScreen}
         options={({ route }) => ({ title: route.params?.listName || 'רשימה' })}
       />
+      <ListsStack.Screen
+        name="PendingRequests"
+        component={PendingRequestsScreen}
+        options={{ title: 'בקשות ממתינות' }}
+      />
     </ListsStack.Navigator>
   );
 }
