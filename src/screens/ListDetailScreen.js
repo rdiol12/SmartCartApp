@@ -87,6 +87,37 @@ export default function ListDetailScreen({ route, navigation }) {
   const undoTimerRef = useRef(null);
   const undoOpacity = useRef(new Animated.Value(0)).current;
 
+  // Undo delete helpers (must be before any conditional returns to satisfy Rules of Hooks)
+  const showUndoToast = useCallback((item) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setDeletedItem(item);
+    Animated.timing(undoOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    undoTimerRef.current = setTimeout(() => {
+      Animated.timing(undoOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setDeletedItem(null);
+      });
+    }, 4000);
+  }, [undoOpacity]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!deletedItem) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    // Re-add the item
+    socket.emit('send_item', {
+      listId: parseInt(listId),
+      itemName: deletedItem.itemname,
+      price: deletedItem.price || null,
+      quantity: deletedItem.quantity || 1,
+      addby: user.id,
+      addat: new Date(),
+      updatedat: new Date(),
+      productId: deletedItem.product_id || null,
+    });
+    Animated.timing(undoOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+      setDeletedItem(null);
+    });
+  }, [deletedItem, listId, user, undoOpacity]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -310,45 +341,6 @@ export default function ListDetailScreen({ route, navigation }) {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  // Undo delete helpers
-  const showUndoToast = useCallback((item) => {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setDeletedItem(item);
-    Animated.timing(undoOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    undoTimerRef.current = setTimeout(() => {
-      Animated.timing(undoOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-        setDeletedItem(null);
-      });
-    }, 4000);
-  }, [undoOpacity]);
-
-  const handleUndoDelete = useCallback(() => {
-    if (!deletedItem) return;
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    // Re-add the item
-    socket.emit('send_item', {
-      listId: parseInt(listId),
-      itemName: deletedItem.itemname,
-      price: deletedItem.price || null,
-      quantity: deletedItem.quantity || 1,
-      addby: user.id,
-      addat: new Date(),
-      updatedat: new Date(),
-      productId: deletedItem.product_id || null,
-    });
-    Animated.timing(undoOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-      setDeletedItem(null);
-    });
-  }, [deletedItem, listId, user, undoOpacity]);
-
   // Listen for item_deleted to capture for undo
   useEffect(() => {
     const onItemDeletedForUndo = ({ itemId }) => {
@@ -358,6 +350,14 @@ export default function ListDetailScreen({ route, navigation }) {
     socket.on('item_deleted', onItemDeletedForUndo);
     return () => socket.off('item_deleted', onItemDeletedForUndo);
   }, [items, showUndoToast]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   // List total calculation
   const listTotal = items.reduce((sum, item) => {
