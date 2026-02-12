@@ -10,11 +10,13 @@ import ListItemRow from '../components/ListItemRow';
 import ProductSearch from '../components/ProductSearch';
 import InviteLinkModal from '../components/InviteLinkModal';
 import ListStats from '../components/ListStats';
+import ListControls from '../components/ListControls';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { colors, spacing, radius } from '../theme';
+import { shareList, copyToClipboard } from '../utils/exportList';
 
 export default function ListDetailScreen({ route, navigation }) {
   const { listId, listName } = route.params;
@@ -37,6 +39,9 @@ export default function ListDetailScreen({ route, navigation }) {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+  const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -152,6 +157,34 @@ export default function ListDetailScreen({ route, navigation }) {
   const checkedCount = items.filter((i) => i.is_checked || i.paid_by).length;
   const progress = items.length > 0 ? (checkedCount / items.length) * 100 : 0;
 
+  // Filter and sort items
+  let displayItems = items;
+
+  // Apply search filter
+  if (searchQuery.trim()) {
+    displayItems = displayItems.filter(item =>
+      item.itemname.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
+
+  // Apply status filter
+  if (filter === 'checked') {
+    displayItems = displayItems.filter(item => item.is_checked || item.paid_by);
+  } else if (filter === 'unchecked') {
+    displayItems = displayItems.filter(item => !item.is_checked && !item.paid_by);
+  }
+
+  // Apply sorting
+  if (sortBy === 'name') {
+    displayItems = [...displayItems].sort((a, b) => a.itemname.localeCompare(b.itemname, 'he'));
+  } else if (sortBy === 'price') {
+    displayItems = [...displayItems].sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
+  } else if (sortBy === 'checked') {
+    displayItems = [...displayItems].sort((a, b) => ((b.is_checked || b.paid_by) ? 1 : 0) - ((a.is_checked || a.paid_by) ? 1 : 0));
+  } else if (sortBy === 'unchecked') {
+    displayItems = [...displayItems].sort((a, b) => ((a.is_checked || a.paid_by) ? 1 : 0) - ((b.is_checked || b.paid_by) ? 1 : 0));
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -167,6 +200,9 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
         {!isLinkedChild && (
           <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => shareList(listName, items)}>
+              <Ionicons name="share-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.headerBtn} onPress={() => setShowPriceComparison(true)}>
               <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
@@ -204,6 +240,15 @@ export default function ListDetailScreen({ route, navigation }) {
       <View style={{ paddingHorizontal: spacing.md }}>
         <ListStats items={items} />
       </View>
+
+      {/* List Controls */}
+      {items.length > 0 && (
+        <ListControls
+          onSortChange={setSortBy}
+          onFilterChange={setFilter}
+          onSearchChange={setSearchQuery}
+        />
+      )}
 
       {/* Add Item Form */}
       <View style={styles.addForm}>
@@ -274,9 +319,18 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={displayItems}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={{ paddingBottom: spacing.xl }}
+          ListEmptyComponent={
+            searchQuery || filter !== 'all' ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+                <Text style={styles.emptyTitle}>לא נמצאו פריטים</Text>
+                <Text style={styles.emptySubtitle}>נסה חיפוש או סינון אחר</Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <ListItemRow item={item} listId={listId} />
           )}
