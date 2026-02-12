@@ -7,7 +7,7 @@ import socket from '../socket';
 import ItemComments from './ItemComments';
 import { colors, spacing, radius } from '../theme';
 
-const ListItemRow = ({ item, listId }) => {
+const ListItemRow = ({ item, listId, shoppingMode = false }) => {
   const { user } = useContext(AuthContext);
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -45,6 +45,49 @@ const ListItemRow = ({ item, listId }) => {
 
   const isPaid = !!item.paid_by;
   const isChecked = item.is_checked;
+
+  // In shopping mode, show larger touchable area for easier checking
+  if (shoppingMode) {
+    return (
+      <TouchableOpacity
+        onPress={handleToggle}
+        style={[
+          styles.row,
+          styles.shoppingModeRow,
+          isPaid && styles.rowPaid,
+          isChecked && !isPaid && styles.rowChecked,
+        ]}
+      >
+        <View style={styles.content}>
+          <Ionicons
+            name={isChecked ? 'checkbox' : 'square-outline'}
+            size={32}
+            color={isChecked ? colors.success : colors.textMuted}
+            style={{ marginLeft: spacing.md }}
+          />
+          <View style={styles.info}>
+            <Text style={[
+              styles.name,
+              styles.shoppingModeName,
+              (isChecked || isPaid) && styles.nameStrikethrough,
+            ]}>
+              {item.itemname}
+            </Text>
+            <View style={styles.metaRow}>
+              {item.quantity > 1 && (
+                <Text style={styles.metaText}>כמות: {item.quantity}</Text>
+              )}
+              {item.price && (
+                <Text style={[styles.metaText, { fontWeight: '600' }]}>
+                  ₪{Number(item.price).toFixed(2)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <View style={[
@@ -219,6 +262,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  shoppingModeRow: {
+    paddingVertical: spacing.md,
+    minHeight: 65,
+  },
+  shoppingModeName: {
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
 

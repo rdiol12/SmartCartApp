@@ -11,6 +11,7 @@ import ProductSearch from '../components/ProductSearch';
 import InviteLinkModal from '../components/InviteLinkModal';
 import ListStats from '../components/ListStats';
 import ListControls from '../components/ListControls';
+import ShoppingModeToggle from '../components/ShoppingModeToggle';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
@@ -42,6 +43,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [sortBy, setSortBy] = useState('default');
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [shoppingMode, setShoppingMode] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -174,6 +176,11 @@ export default function ListDetailScreen({ route, navigation }) {
     displayItems = displayItems.filter(item => !item.is_checked && !item.paid_by);
   }
 
+  // In shopping mode, automatically hide checked items
+  if (shoppingMode) {
+    displayItems = displayItems.filter(item => !item.is_checked && !item.paid_by);
+  }
+
   // Apply sorting
   if (sortBy === 'name') {
     displayItems = [...displayItems].sort((a, b) => a.itemname.localeCompare(b.itemname, 'he'));
@@ -241,13 +248,20 @@ export default function ListDetailScreen({ route, navigation }) {
         <ListStats items={items} />
       </View>
 
-      {/* List Controls */}
+      {/* Shopping Mode & List Controls */}
       {items.length > 0 && (
-        <ListControls
-          onSortChange={setSortBy}
-          onFilterChange={setFilter}
-          onSearchChange={setSearchQuery}
-        />
+        <>
+          <View style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}>
+            <ShoppingModeToggle active={shoppingMode} onToggle={() => setShoppingMode(!shoppingMode)} />
+          </View>
+          {!shoppingMode && (
+            <ListControls
+              onSortChange={setSortBy}
+              onFilterChange={setFilter}
+              onSearchChange={setSearchQuery}
+            />
+          )}
+        </>
       )}
 
       {/* Add Item Form */}
@@ -332,7 +346,7 @@ export default function ListDetailScreen({ route, navigation }) {
             ) : null
           }
           renderItem={({ item }) => (
-            <ListItemRow item={item} listId={listId} />
+            <ListItemRow item={item} listId={listId} shoppingMode={shoppingMode} />
           )}
         />
       )}
