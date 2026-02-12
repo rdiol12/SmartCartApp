@@ -9,7 +9,7 @@ import { colors, spacing, radius } from '../theme';
 import { getCategoryIcon, getCategoryColor } from '../utils/categories';
 import SwipeableListItem from './SwipeableListItem';
 
-const ListItemRow = ({ item, listId, shoppingMode = false }) => {
+const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect }) => {
   const { user } = useContext(AuthContext);
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -66,6 +66,40 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
 
   const isPaid = !!item.paid_by;
   const isChecked = item.is_checked;
+
+  // In multi-select mode, show checkbox for selection
+  if (multiSelectMode) {
+    return (
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        <TouchableOpacity
+          onPress={() => onSelect?.(item.id)}
+          style={[
+            styles.row,
+            isSelected && styles.rowSelected,
+          ]}
+        >
+          <View style={styles.content}>
+            <View style={styles.checkbox}>
+              <Ionicons
+                name={isSelected ? 'checkbox' : 'square-outline'}
+                size={24}
+                color={isSelected ? colors.primary : colors.textMuted}
+              />
+            </View>
+            <View style={styles.info}>
+              <Text style={styles.categoryIcon}>{getCategoryIcon(item.itemname)}</Text>
+              <Text style={styles.name}>{item.itemname}</Text>
+              {item.quantity > 1 && (
+                <View style={styles.badgeMuted}>
+                  <Text style={styles.badgeMutedText}>x{item.quantity}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
 
   // In shopping mode, show larger touchable area for easier checking
   if (shoppingMode) {
@@ -241,6 +275,7 @@ const styles = StyleSheet.create({
   },
   rowPaid: { backgroundColor: '#f0fdf4', borderColor: colors.success + '30' },
   rowChecked: { opacity: 0.7 },
+  rowSelected: { backgroundColor: colors.primary + '15', borderColor: colors.primary },
   content: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
   checkbox: { padding: 2 },
   info: { flex: 1 },

@@ -15,6 +15,7 @@ import ShoppingModeToggle from '../components/ShoppingModeToggle';
 import QuantityPicker from '../components/QuantityPicker';
 import RecentItems from '../components/RecentItems';
 import VoiceInput from '../components/VoiceInput';
+import MultiSelectBar from '../components/MultiSelectBar';
 import { addToRecent } from '../utils/recentItems';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
@@ -48,6 +49,8 @@ export default function ListDetailScreen({ route, navigation }) {
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [shoppingMode, setShoppingMode] = useState(false);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -255,14 +258,32 @@ export default function ListDetailScreen({ route, navigation }) {
       {/* Recent Items */}
       <RecentItems onSelect={handleSelectRecent} />
 
-      {/* Recent Items */}
-      <RecentItems onSelect={handleSelectRecent} />
+      {/* Multi-Select Bar */}
+      {multiSelectMode && (
+        <MultiSelectBar
+          selectedCount={selectedItems.length}
+          onCancel={() => {
+            setMultiSelectMode(false);
+            setSelectedItems([]);
+          }}
+          onDelete={handleMultiSelectDelete}
+          onCheck={handleMultiSelectCheck}
+          onUncheck={handleMultiSelectUncheck}
+        />
+      )}
 
       {/* Shopping Mode & List Controls */}
-      {items.length > 0 && (
+      {items.length > 0 && !multiSelectMode && (
         <>
-          <View style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}>
+          <View style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs, flexDirection: 'row-reverse', gap: spacing.xs }}>
             <ShoppingModeToggle active={shoppingMode} onToggle={() => setShoppingMode(!shoppingMode)} />
+            <TouchableOpacity
+              style={styles.multiSelectBtn}
+              onPress={() => setMultiSelectMode(true)}
+            >
+              <Ionicons name="checkmark-done-outline" size={16} color={colors.primary} />
+              <Text style={styles.multiSelectText}>בחירה מרובה</Text>
+            </TouchableOpacity>
           </View>
           {!shoppingMode && (
             <ListControls
@@ -355,7 +376,14 @@ export default function ListDetailScreen({ route, navigation }) {
             ) : null
           }
           renderItem={({ item }) => (
-            <ListItemRow item={item} listId={listId} shoppingMode={shoppingMode} />
+            <ListItemRow
+              item={item}
+              listId={listId}
+              shoppingMode={shoppingMode}
+              multiSelectMode={multiSelectMode}
+              isSelected={selectedItems.includes(item.id)}
+              onSelect={toggleItemSelection}
+            />
           )}
         />
       )}
@@ -421,4 +449,20 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', marginTop: spacing.xxl },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: spacing.md },
   emptySubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
+  multiSelectBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary + '15',
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  multiSelectText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
 });
