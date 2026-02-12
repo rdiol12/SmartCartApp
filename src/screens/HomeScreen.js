@@ -10,6 +10,7 @@ export default function HomeScreen({ navigation }) {
   const [lists, setLists] = useState([]);
   const [stats, setStats] = useState({ totalLists: 0, totalItems: 0, completionRate: 0 });
   const [loading, setLoading] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,6 +26,16 @@ export default function HomeScreen({ navigation }) {
         const completionRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
         setStats({ totalLists, totalItems, completionRate });
+        
+        // Fetch pending requests count (parent only)
+        if (!isLinkedChild) {
+          try {
+            const reqData = await api.get('/api/kid-requests/pending');
+            setPendingCount(reqData.data.requests?.length || 0);
+          } catch (e) {
+            console.error('Error fetching pending requests:', e);
+          }
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -32,14 +43,29 @@ export default function HomeScreen({ navigation }) {
       }
     };
     fetchData();
-  }, []);
+  }, [isLinkedChild]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.greeting}>שלום, {user?.first_name} 👋</Text>
-      <Text style={styles.subtitle}>
-        {isLinkedChild ? 'בחר רשימה כדי לבקש מוצרים' : 'מה קונים היום?'}
-      </Text>
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greeting}>שלום, {user?.first_name} 👋</Text>
+          <Text style={styles.subtitle}>
+            {isLinkedChild ? 'בחר רשימה כדי לבקש מוצרים' : 'מה קונים היום?'}
+          </Text>
+        </View>
+        {!isLinkedChild && pendingCount > 0 && (
+          <TouchableOpacity 
+            style={styles.pendingBtn}
+            onPress={() => navigation.navigate('PendingRequests')}
+          >
+            <Ionicons name="notifications" size={24} color={colors.warning} />
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingBadgeText}>{pendingCount}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Stats Cards */}
       {!isLinkedChild && !loading && (
@@ -172,4 +198,30 @@ const styles = StyleSheet.create({
   },
   listName: { fontSize: 15, fontWeight: '600', textAlign: 'right' },
   listMeta: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 2 },
+  headerRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  pendingBtn: {
+    position: 'relative',
+    padding: spacing.xs,
+  },
+  pendingBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: colors.danger,
+    borderRadius: radius.full,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  pendingBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
 });

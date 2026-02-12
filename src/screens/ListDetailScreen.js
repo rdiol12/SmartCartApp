@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -195,6 +195,52 @@ export default function ListDetailScreen({ route, navigation }) {
     setMultiSelectMode(false);
   };
 
+  const handleDeleteList = () => {
+    Alert.alert(
+      'מחיקת רשימה',
+      'האם אתה בטוח שברצונך למחוק רשימה זו? פעולה זו אינה הפיכה.',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/api/lists/${listId}`);
+              Alert.alert('הצלחה', 'הרשימה נמחקה');
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('שגיאה', err.response?.data?.message || 'שגיאה במחיקת הרשימה');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLeaveList = () => {
+    Alert.alert(
+      'עזיבת רשימה',
+      'האם אתה בטוח שברצונך לעזוב רשימה זו?',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'עזוב',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.post(`/api/lists/${listId}/leave`);
+              Alert.alert('הצלחה', 'עזבת את הרשימה');
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('שגיאה', err.response?.data?.message || 'שגיאה בעזיבת הרשימה');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -271,7 +317,15 @@ export default function ListDetailScreen({ route, navigation }) {
                 <TouchableOpacity style={styles.headerBtn} onPress={() => setShowInvite(true)}>
                   <Ionicons name="person-add-outline" size={18} color={colors.primary} />
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.headerBtn} onPress={handleDeleteList}>
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
               </>
+            )}
+            {userRole === 'member' && (
+              <TouchableOpacity style={styles.headerBtn} onPress={handleLeaveList}>
+                <Ionicons name="exit-outline" size={18} color={colors.warning} />
+              </TouchableOpacity>
             )}
           </View>
         )}

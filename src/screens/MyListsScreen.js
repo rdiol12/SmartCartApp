@@ -9,6 +9,7 @@ import api from '../api';
 import socket from '../socket';
 import { colors, spacing, radius } from '../theme';
 import { updateBadgeCount } from '../utils/badgeCount';
+import * as Haptics from 'expo-haptics';
 
 export default function MyListsScreen({ navigation }) {
   const { user, isLinkedChild } = useContext(AuthContext);

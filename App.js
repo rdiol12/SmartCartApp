@@ -26,6 +26,7 @@ import ProductScreen from './src/screens/ProductScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
 import TemplatesScreen from './src/screens/TemplatesScreen';
+import PendingRequestsScreen from './src/screens/PendingRequestsScreen';
 
 // Force RTL for Hebrew (only when not already RTL to avoid iOS crash)
 I18nManager.allowRTL(true);
