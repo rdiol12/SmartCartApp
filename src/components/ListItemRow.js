@@ -1,5 +1,5 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import React, { useContext, useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -12,6 +12,25 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(item.note || '');
+  
+  // Fade-in animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleToggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -49,15 +68,16 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
   // In shopping mode, show larger touchable area for easier checking
   if (shoppingMode) {
     return (
-      <TouchableOpacity
-        onPress={handleToggle}
-        style={[
-          styles.row,
-          styles.shoppingModeRow,
-          isPaid && styles.rowPaid,
-          isChecked && !isPaid && styles.rowChecked,
-        ]}
-      >
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        <TouchableOpacity
+          onPress={handleToggle}
+          style={[
+            styles.row,
+            styles.shoppingModeRow,
+            isPaid && styles.rowPaid,
+            isChecked && !isPaid && styles.rowChecked,
+          ]}
+        >
         <View style={styles.content}>
           <Ionicons
             name={isChecked ? 'checkbox' : 'square-outline'}
@@ -86,15 +106,17 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
           </View>
         </View>
       </TouchableOpacity>
+      </Animated.View>
     );
   }
 
   return (
-    <View style={[
-      styles.row,
-      isPaid && styles.rowPaid,
-      isChecked && !isPaid && styles.rowChecked,
-    ]}>
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <View style={[
+        styles.row,
+        isPaid && styles.rowPaid,
+        isChecked && !isPaid && styles.rowChecked,
+      ]}>
       <View style={styles.content}>
         {/* Checkbox */}
         <TouchableOpacity onPress={handleToggle} style={styles.checkbox}>
@@ -196,6 +218,7 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
         </View>
       )}
     </View>
+    </Animated.View>
   );
 };
 

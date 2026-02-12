@@ -12,6 +12,7 @@ import InviteLinkModal from '../components/InviteLinkModal';
 import ListStats from '../components/ListStats';
 import ListControls from '../components/ListControls';
 import ShoppingModeToggle from '../components/ShoppingModeToggle';
+import QuantityPicker from '../components/QuantityPicker';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
@@ -276,14 +277,12 @@ export default function ListDetailScreen({ route, navigation }) {
             returnKeyType="done"
             onSubmitEditing={handleAddItem}
           />
-          <TextInput
-            style={[styles.input, { width: 60 }]}
-            placeholder="כמות"
-            value={itemQty}
-            onChangeText={setItemQty}
-            keyboardType="numeric"
-            textAlign="center"
-          />
+          <View style={{ width: 90 }}>
+            <QuantityPicker
+              value={parseInt(itemQty) || 1}
+              onChange={(val) => setItemQty(String(val))}
+            />
+          </View>
           <TextInput
             style={[styles.input, { width: 75 }]}
             placeholder="מחיר"
