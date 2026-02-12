@@ -13,6 +13,8 @@ import ListStats from '../components/ListStats';
 import ListControls from '../components/ListControls';
 import ShoppingModeToggle from '../components/ShoppingModeToggle';
 import QuantityPicker from '../components/QuantityPicker';
+import RecentItems from '../components/RecentItems';
+import { addToRecent } from '../utils/recentItems';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
@@ -248,6 +250,12 @@ export default function ListDetailScreen({ route, navigation }) {
       <View style={{ paddingHorizontal: spacing.md }}>
         <ListStats items={items} />
       </View>
+
+      {/* Recent Items */}
+      <RecentItems onSelect={handleSelectRecent} />
+
+      {/* Recent Items */}
+      <RecentItems onSelect={handleSelectRecent} />
 
       {/* Shopping Mode & List Controls */}
       {items.length > 0 && (

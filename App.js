@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import NotificationBell from './src/components/NotificationBell';
+import OfflineIndicator from './src/components/OfflineIndicator';
 import { colors } from './src/theme';
 
 // Auth screens
@@ -157,9 +158,12 @@ function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      {user ? <MainTabs /> : <AuthNavigator />}
-    </NavigationContainer>
+    <>
+      <NavigationContainer>
+        {user ? <MainTabs /> : <AuthNavigator />}
+      </NavigationContainer>
+      <OfflineIndicator />
+    </>
   );
 }
 

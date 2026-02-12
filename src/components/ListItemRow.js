@@ -6,6 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import socket from '../socket';
 import ItemComments from './ItemComments';
 import { colors, spacing, radius } from '../theme';
+import { getCategoryIcon, getCategoryColor } from '../utils/categories';
 
 const ListItemRow = ({ item, listId, shoppingMode = false }) => {
   const { user } = useContext(AuthContext);
@@ -130,6 +131,7 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
         {/* Item info */}
         <View style={styles.info}>
           <View style={styles.nameRow}>
+            <Text style={styles.categoryIcon}>{getCategoryIcon(item.itemname)}</Text>
             <Text style={[
               styles.name,
               (isChecked || isPaid) && styles.nameStrikethrough,
@@ -230,6 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 4,
   },
   rowPaid: { backgroundColor: '#f0fdf4', borderColor: colors.success + '30' },
   rowChecked: { opacity: 0.7 },
@@ -293,6 +296,10 @@ const styles = StyleSheet.create({
   shoppingModeName: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  categoryIcon: {
+    fontSize: 16,
+    marginRight: spacing.xs,
   },
 });
 
