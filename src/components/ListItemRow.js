@@ -7,6 +7,7 @@ import socket from '../socket';
 import ItemComments from './ItemComments';
 import { colors, spacing, radius } from '../theme';
 import { getCategoryIcon, getCategoryColor } from '../utils/categories';
+import SwipeableListItem from './SwipeableListItem';
 
 const ListItemRow = ({ item, listId, shoppingMode = false }) => {
   const { user } = useContext(AuthContext);
@@ -69,8 +70,9 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
   // In shopping mode, show larger touchable area for easier checking
   if (shoppingMode) {
     return (
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        <TouchableOpacity
+      <SwipeableListItem onDelete={handleDelete} onCheck={handleToggle} isChecked={isChecked}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <TouchableOpacity
           onPress={handleToggle}
           style={[
             styles.row,
@@ -107,13 +109,15 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
           </View>
         </View>
       </TouchableOpacity>
-      </Animated.View>
+        </Animated.View>
+      </SwipeableListItem>
     );
   }
 
   return (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-      <View style={[
+    <SwipeableListItem onDelete={handleDelete} onCheck={handleToggle} isChecked={isChecked}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        <View style={[
         styles.row,
         isPaid && styles.rowPaid,
         isChecked && !isPaid && styles.rowChecked,
@@ -220,7 +224,8 @@ const ListItemRow = ({ item, listId, shoppingMode = false }) => {
         </View>
       )}
     </View>
-    </Animated.View>
+      </Animated.View>
+    </SwipeableListItem>
   );
 };
 

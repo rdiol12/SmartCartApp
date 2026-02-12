@@ -14,6 +14,7 @@ import ListControls from '../components/ListControls';
 import ShoppingModeToggle from '../components/ShoppingModeToggle';
 import QuantityPicker from '../components/QuantityPicker';
 import RecentItems from '../components/RecentItems';
+import VoiceInput from '../components/VoiceInput';
 import { addToRecent } from '../utils/recentItems';
 import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
@@ -314,6 +315,7 @@ export default function ListDetailScreen({ route, navigation }) {
               color={isLinkedChild ? colors.primary : '#fff'}
             />
           </TouchableOpacity>
+          <VoiceInput onResult={(text) => setItemName(text)} />
           <TouchableOpacity style={styles.searchBtn} onPress={() => setShowSearch(!showSearch)}>
             <Ionicons name="search-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
