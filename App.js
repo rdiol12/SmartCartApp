@@ -27,6 +27,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
 import TemplatesScreen from './src/screens/TemplatesScreen';
 import PendingRequestsScreen from './src/screens/PendingRequestsScreen';
+import BudgetScreen from './src/screens/BudgetScreen';
 
 // Force RTL for Hebrew (only when not already RTL to avoid iOS crash)
 I18nManager.allowRTL(true);
@@ -37,6 +38,7 @@ if (!I18nManager.isRTL) {
 const AuthStack = createNativeStackNavigator();
 const ListsStack = createNativeStackNavigator();
 const StoreStack = createNativeStackNavigator();
+const BudgetStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -100,6 +102,20 @@ function StoreNavigator() {
   );
 }
 
+function BudgetNavigator() {
+  return (
+    <BudgetStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerTitleAlign: 'center',
+      }}
+    >
+      <BudgetStack.Screen name="BudgetMain" component={BudgetScreen} options={{ title: 'תקציב' }} />
+    </BudgetStack.Navigator>
+  );
+}
+
 function ProfileNavigator() {
   return (
     <ProfileStack.Navigator
@@ -127,6 +143,7 @@ function MainTabs() {
           if (route.name === 'HomeTab') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'ListsTab') iconName = focused ? 'list' : 'list-outline';
           else if (route.name === 'StoreTab') iconName = focused ? 'storefront' : 'storefront-outline';
+          else if (route.name === 'BudgetTab') iconName = focused ? 'wallet' : 'wallet-outline';
           else if (route.name === 'ProfileTab') iconName = focused ? 'person' : 'person-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -147,6 +164,7 @@ function MainTabs() {
       }} />
       <Tab.Screen name="ListsTab" component={ListsNavigator} options={{ title: 'רשימות' }} />
       <Tab.Screen name="StoreTab" component={StoreNavigator} options={{ title: 'חנות' }} />
+      <Tab.Screen name="BudgetTab" component={BudgetNavigator} options={{ title: 'תקציב' }} />
       <Tab.Screen name="ProfileTab" component={ProfileNavigator} options={{ title: 'הגדרות' }} />
     </Tab.Navigator>
   );

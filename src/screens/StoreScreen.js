@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput,
 } from 'react-native';
@@ -8,59 +8,36 @@ import { colors, spacing, radius } from '../theme';
 
 export default function StoreScreen({ navigation }) {
   const [products, setProducts] = useState([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortBy, setSortBy] = useState('');
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const limit = 12;
-  const offsetRef = useRef(0);
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    api.get('/api/categories')
-      .then(({ data }) => setCategories(data.categories || []))
-      .catch(() => {});
-  }, []);
-
-  const fetchProducts = useCallback(async (reset = false) => {
-    const currentOffset = reset ? 0 : offsetRef.current;
-    if (!reset) setLoadingMore(true);
-    try {
-      const params = { limit, offset: currentOffset };
-      if (selectedCategory) params.category = selectedCategory;
-      if (sortBy) params.sort = sortBy;
-      if (searchQuery.trim()) params.search = searchQuery.trim();
-
-      const { data } = await api.get('/api/store', { params });
-      const newProducts = Array.isArray(data.products) ? data.products : [];
-
-      if (reset) {
-        setProducts(newProducts);
-      } else {
-        setProducts((prev) => [...prev, ...newProducts]);
-      }
-      offsetRef.current = data.nextOffset || currentOffset + newProducts.length;
-      setHasMore(data.hasMore ?? false);
-    } catch (err) {
-      console.error(err);
-      setHasMore(false);
-    } finally {
+    if (searchQuery.trim().length < 2) {
+      setProducts([]);
       setLoading(false);
-      setLoadingMore(false);
+      return;
     }
-  }, [selectedCategory, sortBy, searchQuery]);
 
-  useEffect(() => {
     setLoading(true);
-    offsetRef.current = 0;
-    fetchProducts(true);
-  }, [selectedCategory, sortBy, searchQuery]);
+    if (timerRef.current) clearTimeout(timerRef.current);
 
-  const handleEndReached = () => {
-    if (hasMore && !loadingMore) fetchProducts();
-  };
+    timerRef.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/api/search', {
+          params: { q: searchQuery.trim() },
+        });
+        setProducts(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timerRef.current);
+  }, [searchQuery]);
 
   const renderProduct = ({ item }) => (
     <TouchableOpacity
@@ -74,20 +51,11 @@ export default function StoreScreen({ navigation }) {
         <Text style={styles.productName} numberOfLines={2}>{item.item_name || 'מוצר'}</Text>
         <Text style={styles.productChain}>{item.chain_name || ''}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>₪{item.price ?? '—'}</Text>
+          <Text style={styles.price}>{item.price ? `₪${Number(item.price).toFixed(2)}` : '—'}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
-
-  if (loading && products.length === 0) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>טוען מוצרים...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -112,34 +80,23 @@ export default function StoreScreen({ navigation }) {
         )}
       </View>
 
-      {/* Filters */}
-      {categories.length > 0 && (
-        <FlatList
-          data={[{ value: '', label: 'הכל' }, ...categories.map((c) => ({ value: c, label: c }))]}
-          keyExtractor={(item) => item.value}
-          horizontal
-          inverted
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterList}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.filterChip, selectedCategory === item.value && styles.filterChipActive]}
-              onPress={() => setSelectedCategory(item.value)}
-            >
-              <Text style={[styles.filterText, selectedCategory === item.value && styles.filterTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
+      {/* Loading */}
+      {loading && (
+        <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
       )}
 
       {/* Products */}
-      {products.length === 0 ? (
+      {!loading && searchQuery.trim().length < 2 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+          <Text style={styles.emptyTitle}>חפש מוצר</Text>
+          <Text style={styles.emptySubtitle}>הקלד לפחות 2 תווים כדי לחפש</Text>
+        </View>
+      ) : !loading && products.length === 0 && searchQuery.trim().length >= 2 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cart-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
           <Text style={styles.emptyTitle}>לא נמצאו מוצרים</Text>
-          <Text style={styles.emptySubtitle}>נסה לשנות את הפילטרים</Text>
+          <Text style={styles.emptySubtitle}>נסה מילת חיפוש אחרת</Text>
         </View>
       ) : (
         <FlatList
@@ -149,15 +106,7 @@ export default function StoreScreen({ navigation }) {
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ paddingBottom: spacing.xl }}
           renderItem={renderProduct}
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
-            ) : !hasMore && products.length > 0 ? (
-              <Text style={styles.endText}>הגעת לסוף הרשימה</Text>
-            ) : null
-          }
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </View>
@@ -166,8 +115,6 @@ export default function StoreScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
-  loadingText: { color: colors.textMuted, marginTop: spacing.md },
   title: { fontSize: 20, fontWeight: '700', textAlign: 'right' },
   subtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.md },
   searchContainer: {
@@ -187,14 +134,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   clearBtn: { padding: 4 },
-  filterList: { maxHeight: 40, marginBottom: spacing.md },
-  filterChip: {
-    paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginHorizontal: 3,
-  },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { fontSize: 12, fontWeight: '600', color: colors.text },
-  filterTextActive: { color: '#fff' },
   row: { justifyContent: 'space-between' },
   productCard: {
     width: '48%', backgroundColor: colors.surface, borderRadius: radius.md,
@@ -211,5 +150,4 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', marginTop: spacing.xxl },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: spacing.md },
   emptySubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
-  endText: { textAlign: 'center', color: colors.textMuted, fontSize: 13, paddingVertical: spacing.lg },
 });

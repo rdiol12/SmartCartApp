@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getRecentItems } from '../utils/recentItems';
+import api from '../api';
 import { colors, spacing, radius } from '../theme';
 
 const RecentItems = ({ onSelect }) => {
   const [recent, setRecent] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
     loadRecent();
+    loadSuggestions();
   }, []);
 
   const loadRecent = async () => {
@@ -16,17 +19,45 @@ const RecentItems = ({ onSelect }) => {
     setRecent(items);
   };
 
-  if (recent.length === 0) return null;
+  const loadSuggestions = async () => {
+    try {
+      const { data } = await api.get('/api/suggestions');
+      setSuggestions(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // silently fail
+    }
+  };
+
+  // Merge recent + suggestions, dedup by name
+  const seen = new Set();
+  const allItems = [];
+  for (const item of recent) {
+    if (!seen.has(item.itemname)) {
+      seen.add(item.itemname);
+      allItems.push(item);
+    }
+  }
+  for (const item of suggestions) {
+    if (!seen.has(item.itemname)) {
+      seen.add(item.itemname);
+      allItems.push(item);
+    }
+  }
+
+  if (allItems.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>פריטים אחרונים</Text>
+      <Text style={styles.title}>
+        <Ionicons name="flash-outline" size={12} color={colors.textMuted} /> הצעות מהירות
+      </Text>
       <ScrollView
         horizontal
+        inverted
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {recent.map((item, index) => (
+        {allItems.map((item, index) => (
           <TouchableOpacity
             key={index}
             style={styles.chip}

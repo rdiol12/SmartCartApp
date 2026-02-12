@@ -1,15 +1,100 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, RefreshControl,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, RefreshControl, Animated, PanResponder, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 import socket from '../socket';
 import { colors, spacing, radius } from '../theme';
 import { updateBadgeCount } from '../utils/badgeCount';
 import * as Haptics from 'expo-haptics';
+
+const SWIPE_THRESHOLD = 80;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+function SwipeableListCard({ item, onPress, onDelete, onCopyInvite, isAdmin, isLinkedChild }) {
+  const pan = useRef(new Animated.Value(0)).current;
+  const releasing = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_, g) => {
+        pan.setValue(g.dx);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (releasing.current) return;
+        releasing.current = true;
+
+        if (g.dx < -SWIPE_THRESHOLD && isAdmin && !isLinkedChild) {
+          // Swiped left → copy invite
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onCopyInvite(item);
+          Animated.spring(pan, { toValue: 0, useNativeDriver: true }).start(() => {
+            releasing.current = false;
+          });
+        } else if (g.dx > SWIPE_THRESHOLD) {
+          // Swiped right → delete
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          Animated.timing(pan, { toValue: SCREEN_WIDTH, duration: 200, useNativeDriver: true }).start(() => {
+            onDelete(item);
+            pan.setValue(0);
+            releasing.current = false;
+          });
+        } else {
+          Animated.spring(pan, { toValue: 0, useNativeDriver: true }).start(() => {
+            releasing.current = false;
+          });
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(pan, { toValue: 0, useNativeDriver: true }).start(() => {
+          releasing.current = false;
+        });
+      },
+    })
+  ).current;
+
+  return (
+    <View style={styles.swipeContainer}>
+      {/* Right background — delete (revealed on swipe right) */}
+      <View style={[styles.swipeBg, styles.swipeBgRight]}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+        <Text style={styles.swipeBgText}>מחק</Text>
+      </View>
+      {/* Left background — invite (revealed on swipe left) */}
+      {isAdmin && !isLinkedChild && (
+        <View style={[styles.swipeBg, styles.swipeBgLeft]}>
+          <Ionicons name="link-outline" size={22} color="#fff" />
+          <Text style={styles.swipeBgText}>העתק הזמנה</Text>
+        </View>
+      )}
+
+      <Animated.View style={{ transform: [{ translateX: pan }] }} {...panResponder.panHandlers}>
+        <TouchableOpacity
+          style={styles.listCard}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.listName}>{item.list_name}</Text>
+            <Text style={styles.listMeta}>{item.item_count} פריטים · {item.member_count} חברים</Text>
+          </View>
+          {!isLinkedChild && (
+            <View style={[styles.badge, item.role === 'admin' ? styles.badgePrimary : styles.badgeMuted]}>
+              <Text style={[styles.badgeText, item.role === 'admin' ? styles.badgeTextPrimary : styles.badgeTextMuted]}>
+                {item.role === 'admin' ? 'מנהל' : 'חבר'}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function MyListsScreen({ navigation }) {
   const { user, isLinkedChild } = useContext(AuthContext);
@@ -28,7 +113,7 @@ export default function MyListsScreen({ navigation }) {
     try {
       const { data } = await api.get('/api/lists');
       setLists(data.lists);
-      
+
       // Update badge count with total unchecked items
       const totalUnchecked = data.lists.reduce((sum, list) => sum + (list.item_count || 0), 0);
       updateBadgeCount(totalUnchecked);
@@ -86,6 +171,39 @@ export default function MyListsScreen({ navigation }) {
     });
   };
 
+  const handleDeleteList = (item) => {
+    Alert.alert(
+      'מחיקת רשימה',
+      `האם אתה בטוח שברצונך למחוק את "${item.list_name}"?`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/api/lists/${item.id}`);
+              setLists((prev) => prev.filter((l) => l.id !== item.id));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (err) {
+              Alert.alert('שגיאה', err.response?.data?.message || 'שגיאה במחיקת הרשימה');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCopyInvite = async (item) => {
+    try {
+      const { data } = await api.post(`/api/lists/${item.id}/invite`);
+      await Clipboard.setStringAsync(data.inviteLink);
+      Alert.alert('הקישור הועתק', 'קישור ההזמנה הועתק ללוח');
+    } catch (err) {
+      Alert.alert('שגיאה', err.response?.data?.message || 'שגיאה ביצירת הזמנה');
+    }
+  };
+
   const statusLabel = (s) => ({ pending: 'ממתין', approved: 'אושר', rejected: 'נדחה' }[s] || s);
   const statusColor = (s) => ({ pending: colors.textMuted, approved: colors.success, rejected: colors.danger }[s] || colors.textMuted);
 
@@ -134,22 +252,14 @@ export default function MyListsScreen({ navigation }) {
               <Text style={styles.empty}>{isLinkedChild ? 'ההורים עוד לא יצרו רשימות' : 'אין רשימות עדיין'}</Text>
             }
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.listCard}
+              <SwipeableListCard
+                item={item}
+                isAdmin={item.role === 'admin'}
+                isLinkedChild={isLinkedChild}
                 onPress={() => navigation.navigate('ListDetail', { listId: item.id, listName: item.list_name })}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.listName}>{item.list_name}</Text>
-                  <Text style={styles.listMeta}>{item.item_count} פריטים · {item.member_count} חברים</Text>
-                </View>
-                {!isLinkedChild && (
-                  <View style={[styles.badge, item.role === 'admin' ? styles.badgePrimary : styles.badgeMuted]}>
-                    <Text style={[styles.badgeText, item.role === 'admin' ? styles.badgeTextPrimary : styles.badgeTextMuted]}>
-                      {item.role === 'admin' ? 'מנהל' : 'חבר'}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+                onDelete={handleDeleteList}
+                onCopyInvite={handleCopyInvite}
+              />
             )}
           />
         )
@@ -222,9 +332,16 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '600', color: colors.text },
   tabTextActive: { color: '#fff' },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl },
+  // Swipe
+  swipeContainer: { marginBottom: spacing.sm, borderRadius: radius.md, overflow: 'hidden' },
+  swipeBg: { ...StyleSheet.absoluteFillObject, flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.lg, borderRadius: radius.md },
+  swipeBgLeft: { backgroundColor: colors.primary, justifyContent: 'flex-start' },
+  swipeBgRight: { backgroundColor: colors.danger, justifyContent: 'flex-end' },
+  swipeBgText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  // List card
   listCard: {
     backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.lg,
-    flexDirection: 'row-reverse', alignItems: 'center', marginBottom: spacing.sm,
+    flexDirection: 'row-reverse', alignItems: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
   listName: { fontSize: 15, fontWeight: '600', textAlign: 'right' },

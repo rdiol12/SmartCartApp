@@ -14,7 +14,9 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(item.note || '');
-  
+  const [qty, setQty] = useState(item.quantity || 1);
+  const lastTapRef = useRef(0);
+
   // Fade-in animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -34,6 +36,10 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
     ]).start();
   }, []);
 
+  useEffect(() => {
+    setQty(item.quantity || 1);
+  }, [item.quantity]);
+
   const handleToggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     socket.emit('toggle_item', { itemId: item.id, listId, isChecked: !item.is_checked });
@@ -52,6 +58,25 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
     }
   };
 
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap detected
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      handleMarkPaid();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
+  const handleQuantityChange = (delta) => {
+    const newQty = Math.max(1, qty + delta);
+    setQty(newQty);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    socket.emit('update_quantity', { itemId: item.id, listId, quantity: newQty });
+  };
+
   const handleSaveNote = () => {
     if (noteText !== item.note) {
       socket.emit('update_note', { itemId: item.id, listId, note: noteText.trim() });
@@ -66,6 +91,19 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
 
   const isPaid = !!item.paid_by;
   const isChecked = item.is_checked;
+
+  // Inline quantity stepper
+  const QuantityStepper = () => (
+    <View style={styles.qtyStepper}>
+      <TouchableOpacity onPress={() => handleQuantityChange(-1)} style={styles.qtyBtn}>
+        <Ionicons name="remove" size={14} color={colors.text} />
+      </TouchableOpacity>
+      <Text style={styles.qtyValue}>{qty}</Text>
+      <TouchableOpacity onPress={() => handleQuantityChange(1)} style={styles.qtyBtn}>
+        <Ionicons name="add" size={14} color={colors.text} />
+      </TouchableOpacity>
+    </View>
+  );
 
   // In multi-select mode, show checkbox for selection
   if (multiSelectMode) {
@@ -89,9 +127,9 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
             <View style={styles.info}>
               <Text style={styles.categoryIcon}>{getCategoryIcon(item.itemname)}</Text>
               <Text style={styles.name}>{item.itemname}</Text>
-              {item.quantity > 1 && (
+              {qty > 1 && (
                 <View style={styles.badgeMuted}>
-                  <Text style={styles.badgeMutedText}>x{item.quantity}</Text>
+                  <Text style={styles.badgeMutedText}>x{qty}</Text>
                 </View>
               )}
             </View>
@@ -101,13 +139,15 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
     );
   }
 
-  // In shopping mode, show larger touchable area for easier checking
+  // In shopping mode — double-tap to mark paid
   if (shoppingMode) {
     return (
       <SwipeableListItem onDelete={handleDelete} onCheck={handleToggle} isChecked={isChecked}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <TouchableOpacity
           onPress={handleToggle}
+          onLongPress={handleDoubleTap}
+          delayLongPress={0}
           style={[
             styles.row,
             styles.shoppingModeRow,
@@ -131,16 +171,23 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
               {item.itemname}
             </Text>
             <View style={styles.metaRow}>
-              {item.quantity > 1 && (
-                <Text style={styles.metaText}>כמות: {item.quantity}</Text>
+              {qty > 1 && (
+                <Text style={styles.metaText}>כמות: {qty}</Text>
               )}
               {item.price && (
                 <Text style={[styles.metaText, { fontWeight: '600' }]}>
                   ₪{Number(item.price).toFixed(2)}
                 </Text>
               )}
+              {isPaid && (
+                <Text style={[styles.metaText, { color: colors.success }]}>שולם</Text>
+              )}
             </View>
           </View>
+          {/* Mark paid button in shopping mode */}
+          <TouchableOpacity onPress={handleMarkPaid} style={[styles.paidBtn, isPaid && styles.paidBtnActive]}>
+            <Ionicons name="cash-outline" size={20} color={isPaid ? colors.success : colors.textMuted} />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
         </Animated.View>
@@ -151,11 +198,15 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
   return (
     <SwipeableListItem onDelete={handleDelete} onCheck={handleToggle} isChecked={isChecked}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        <View style={[
-        styles.row,
-        isPaid && styles.rowPaid,
-        isChecked && !isPaid && styles.rowChecked,
-      ]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={handleDoubleTap}
+          style={[
+            styles.row,
+            isPaid && styles.rowPaid,
+            isChecked && !isPaid && styles.rowChecked,
+          ]}
+        >
       <View style={styles.content}>
         {/* Checkbox */}
         <TouchableOpacity onPress={handleToggle} style={styles.checkbox}>
@@ -176,11 +227,6 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
             ]}>
               {item.itemname}
             </Text>
-            {item.quantity > 1 && (
-              <View style={styles.badgeMuted}>
-                <Text style={styles.badgeMutedText}>x{item.quantity}</Text>
-              </View>
-            )}
             {item.price && (
               <View style={styles.badgePrice}>
                 <Text style={styles.badgePriceText}>
@@ -190,7 +236,9 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
             )}
           </View>
 
+          {/* Quantity stepper */}
           <View style={styles.metaRow}>
+            <QuantityStepper />
             {item.added_by_name && (
               <Text style={styles.metaText}>
                 {item.added_by_name}
@@ -257,7 +305,7 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
           <ItemComments itemId={item.id} listId={listId} />
         </View>
       )}
-    </View>
+    </TouchableOpacity>
       </Animated.View>
     </SwipeableListItem>
   );
@@ -286,12 +334,20 @@ const styles = StyleSheet.create({
   badgeMutedText: { fontSize: 10, color: colors.textMuted, fontWeight: '600' },
   badgePrice: { backgroundColor: colors.primary + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: radius.full },
   badgePriceText: { fontSize: 10, color: colors.primary, fontWeight: '600' },
-  metaRow: { flexDirection: 'row-reverse', gap: spacing.sm, marginTop: 2 },
+  metaRow: { flexDirection: 'row-reverse', gap: spacing.sm, marginTop: 4, alignItems: 'center' },
   metaText: { fontSize: 11, color: colors.textMuted },
   note: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic', textAlign: 'right', marginTop: 4 },
   actions: { flexDirection: 'row', gap: 4 },
   iconBtn: { padding: 6, borderRadius: radius.sm },
   iconBtnActive: { backgroundColor: colors.success + '15' },
+  // Quantity stepper
+  qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: colors.bg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 2 },
+  qtyBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  qtyValue: { fontSize: 12, fontWeight: '700', minWidth: 20, textAlign: 'center' },
+  // Paid button in shopping mode
+  paidBtn: { padding: spacing.sm, borderRadius: radius.sm },
+  paidBtnActive: { backgroundColor: colors.success + '15' },
+  // Note
   noteEditor: { marginTop: spacing.sm },
   noteInput: {
     backgroundColor: colors.bg,

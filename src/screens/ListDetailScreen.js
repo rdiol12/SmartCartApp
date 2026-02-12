@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -22,8 +22,10 @@ import PriceComparisonModal from '../components/PriceComparisonModal';
 import ChildAccessModal from '../components/ChildAccessModal';
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal';
 import BarcodeScanner from '../components/BarcodeScanner';
+import ReceiptScanner from '../components/ReceiptScanner';
 import { colors, spacing, radius } from '../theme';
 import { shareList, copyToClipboard } from '../utils/exportList';
+import { categorizeItem, categories } from '../utils/categories';
 
 export default function ListDetailScreen({ route, navigation }) {
   const { listId, listName } = route.params;
@@ -46,6 +48,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
   const [sortBy, setSortBy] = useState('default');
   const [filter, setFilter] = useState('all');
@@ -53,6 +56,11 @@ export default function ListDetailScreen({ route, navigation }) {
   const [shoppingMode, setShoppingMode] = useState(false);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
+
+  // Undo delete
+  const [deletedItem, setDeletedItem] = useState(null);
+  const undoTimerRef = useRef(null);
+  const undoOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -92,6 +100,9 @@ export default function ListDetailScreen({ route, navigation }) {
     const onItemUnpaid = ({ itemId }) => {
       setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, paid_by: null, paid_by_name: null, paid_at: null } : i)));
     };
+    const onQuantityUpdated = ({ itemId, quantity }) => {
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, quantity } : i)));
+    };
 
     socket.on('receive_item', onReceiveItem);
     socket.on('item_status_changed', onItemStatusChanged);
@@ -99,6 +110,7 @@ export default function ListDetailScreen({ route, navigation }) {
     socket.on('note_updated', onNoteUpdated);
     socket.on('item_paid', onItemPaid);
     socket.on('item_unpaid', onItemUnpaid);
+    socket.on('quantity_updated', onQuantityUpdated);
 
     return () => {
       socket.off('receive_item', onReceiveItem);
@@ -107,6 +119,7 @@ export default function ListDetailScreen({ route, navigation }) {
       socket.off('note_updated', onNoteUpdated);
       socket.off('item_paid', onItemPaid);
       socket.off('item_unpaid', onItemUnpaid);
+      socket.off('quantity_updated', onQuantityUpdated);
     };
   }, [listId]);
 
@@ -156,6 +169,21 @@ export default function ListDetailScreen({ route, navigation }) {
     setItemName(product.name || product.item_name || product.product_name || '');
     if (product.price) setItemPrice(String(product.price));
     setShowScanner(false);
+  };
+
+  const handleReceiptItems = (receiptItems) => {
+    receiptItems.forEach(item => {
+      socket.emit('send_item', {
+        listId: parseInt(listId),
+        itemName: item.name,
+        price: item.price || null,
+        quantity: item.quantity || 1,
+        addby: user.id,
+        addat: new Date(),
+        updatedat: new Date(),
+      });
+      addToRecent({ itemname: item.name, price: item.price, quantity: item.quantity || 1 });
+    });
   };
 
   const handleSelectRecent = (item) => {
@@ -250,6 +278,54 @@ export default function ListDetailScreen({ route, navigation }) {
     );
   }
 
+  // Undo delete helpers
+  const showUndoToast = useCallback((item) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setDeletedItem(item);
+    Animated.timing(undoOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    undoTimerRef.current = setTimeout(() => {
+      Animated.timing(undoOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setDeletedItem(null);
+      });
+    }, 4000);
+  }, [undoOpacity]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!deletedItem) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    // Re-add the item
+    socket.emit('send_item', {
+      listId: parseInt(listId),
+      itemName: deletedItem.itemname,
+      price: deletedItem.price || null,
+      quantity: deletedItem.quantity || 1,
+      addby: user.id,
+      addat: new Date(),
+      updatedat: new Date(),
+      productId: deletedItem.product_id || null,
+    });
+    Animated.timing(undoOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+      setDeletedItem(null);
+    });
+  }, [deletedItem, listId, user, undoOpacity]);
+
+  // Listen for item_deleted to capture for undo
+  useEffect(() => {
+    const onItemDeletedForUndo = ({ itemId }) => {
+      const deleted = items.find((i) => i.id === itemId);
+      if (deleted) showUndoToast(deleted);
+    };
+    socket.on('item_deleted', onItemDeletedForUndo);
+    return () => socket.off('item_deleted', onItemDeletedForUndo);
+  }, [items, showUndoToast]);
+
+  // List total calculation
+  const listTotal = items.reduce((sum, item) => {
+    const p = parseFloat(item.price) || 0;
+    const q = parseFloat(item.quantity) || 1;
+    return sum + (p * q);
+  }, 0);
+
   const checkedCount = items.filter((i) => i.is_checked || i.paid_by).length;
   const progress = items.length > 0 ? (checkedCount / items.length) * 100 : 0;
 
@@ -278,12 +354,32 @@ export default function ListDetailScreen({ route, navigation }) {
   // Apply sorting
   if (sortBy === 'name') {
     displayItems = [...displayItems].sort((a, b) => a.itemname.localeCompare(b.itemname, 'he'));
+  } else if (sortBy === 'category') {
+    const catOrder = categories.map(c => c.name);
+    displayItems = [...displayItems].sort((a, b) => {
+      const catA = categorizeItem(a.itemname).name;
+      const catB = categorizeItem(b.itemname).name;
+      return catOrder.indexOf(catA) - catOrder.indexOf(catB);
+    });
   } else if (sortBy === 'price') {
     displayItems = [...displayItems].sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
   } else if (sortBy === 'checked') {
     displayItems = [...displayItems].sort((a, b) => ((b.is_checked || b.paid_by) ? 1 : 0) - ((a.is_checked || a.paid_by) ? 1 : 0));
   } else if (sortBy === 'unchecked') {
     displayItems = [...displayItems].sort((a, b) => ((a.is_checked || a.paid_by) ? 1 : 0) - ((b.is_checked || b.paid_by) ? 1 : 0));
+  }
+
+  // Build section headers for category sort
+  const categoryHeaders = {};
+  if (sortBy === 'category') {
+    let lastCat = null;
+    displayItems.forEach((item, idx) => {
+      const cat = categorizeItem(item.itemname);
+      if (cat.name !== lastCat) {
+        categoryHeaders[item.id] = cat;
+        lastCat = cat.name;
+      }
+    });
   }
 
   return (
@@ -332,7 +428,7 @@ export default function ListDetailScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Progress bar */}
+      {/* Progress bar & total */}
       {items.length > 0 && (
         <View style={styles.progressSection}>
           <View style={styles.progressLabels}>
@@ -342,6 +438,12 @@ export default function ListDetailScreen({ route, navigation }) {
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
+          {listTotal > 0 && (
+            <View style={styles.totalRow}>
+              <Ionicons name="wallet-outline" size={14} color={colors.primary} />
+              <Text style={styles.totalText}>סה"כ: ₪{listTotal.toFixed(2)}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -438,6 +540,9 @@ export default function ListDetailScreen({ route, navigation }) {
           <TouchableOpacity style={styles.searchBtn} onPress={() => setShowScanner(true)}>
             <Ionicons name="barcode-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.searchBtn} onPress={() => setShowReceiptScanner(true)}>
+            <Ionicons name="receipt-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
         </View>
         {requestMsg ? (
           <Text style={styles.requestMsg}>{requestMsg}</Text>
@@ -471,14 +576,22 @@ export default function ListDetailScreen({ route, navigation }) {
             ) : null
           }
           renderItem={({ item }) => (
-            <ListItemRow
-              item={item}
-              listId={listId}
-              shoppingMode={shoppingMode}
-              multiSelectMode={multiSelectMode}
-              isSelected={selectedItems.includes(item.id)}
-              onSelect={toggleItemSelection}
-            />
+            <View>
+              {categoryHeaders[item.id] && (
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryHeaderIcon}>{categoryHeaders[item.id].icon}</Text>
+                  <Text style={[styles.categoryHeaderText, { color: categoryHeaders[item.id].color }]}>{categoryHeaders[item.id].name}</Text>
+                </View>
+              )}
+              <ListItemRow
+                item={item}
+                listId={listId}
+                shoppingMode={shoppingMode}
+                multiSelectMode={multiSelectMode}
+                isSelected={selectedItems.includes(item.id)}
+                onSelect={toggleItemSelection}
+              />
+            </View>
           )}
         />
       )}
@@ -506,6 +619,11 @@ export default function ListDetailScreen({ route, navigation }) {
         onClose={() => setShowScanner(false)}
         onProductFound={handleBarcodeScanned}
       />
+      <ReceiptScanner
+        visible={showReceiptScanner}
+        onClose={() => setShowReceiptScanner(false)}
+        onItemsFound={handleReceiptItems}
+      />
       <TemplatesModal
         visible={showTemplates}
         onClose={() => setShowTemplates(false)}
@@ -524,6 +642,15 @@ export default function ListDetailScreen({ route, navigation }) {
           });
         }}
       />
+      {/* Undo delete toast */}
+      {deletedItem && (
+        <Animated.View style={[styles.undoToast, { opacity: undoOpacity }]}>
+          <Text style={styles.undoText}>"{deletedItem.itemname}" נמחק</Text>
+          <TouchableOpacity onPress={handleUndoDelete} style={styles.undoBtn}>
+            <Text style={styles.undoBtnText}>בטל</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -578,4 +705,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  totalRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+  },
+  totalText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  undoToast: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: '#1f2937',
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  undoText: { color: '#fff', fontSize: 14 },
+  undoBtn: { paddingVertical: 4, paddingHorizontal: spacing.md },
+  undoBtnText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  categoryHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  categoryHeaderIcon: { fontSize: 18 },
+  categoryHeaderText: { fontSize: 14, fontWeight: '700' },
 });

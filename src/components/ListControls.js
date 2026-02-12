@@ -12,6 +12,7 @@ const ListControls = ({ onSortChange, onFilterChange, onSearchChange }) => {
   const sortOptions = [
     { value: 'default', label: 'ברירת מחדל' },
     { value: 'name', label: 'שם (א-ת)' },
+    { value: 'category', label: 'לפי מחלקה' },
     { value: 'price', label: 'מחיר' },
     { value: 'checked', label: 'מסומנים תחילה' },
     { value: 'unchecked', label: 'לא מסומנים תחילה' },

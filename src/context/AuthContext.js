@@ -1,7 +1,9 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { setAccessToken } from '../api';
 import socket from '../socket';
+import { registerForPushNotifications, savePushToken, removePushToken } from '../utils/pushNotifications';
+import * as Notifications from 'expo-notifications';
 
 export const AuthContext = createContext();
 
@@ -9,6 +11,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isLinkedChild, setIsLinkedChild] = useState(false);
+  const notificationListener = useRef();
+  const responseListener = useRef();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -47,10 +51,36 @@ export const AuthProvider = ({ children }) => {
       setIsLinkedChild(!!user.parent_id);
       if (!socket.connected) socket.connect();
       socket.emit('register_user', user.id);
+
+      // Register for push notifications
+      (async () => {
+        const token = await registerForPushNotifications();
+        if (token) await savePushToken(token);
+      })();
+
+      // Listen for incoming notifications
+      notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+        // Notification received while app is in foreground
+      });
+
+      // Listen for notification taps
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+        const data = response.notification.request.content.data;
+        // Could navigate to specific screen based on data.type
+      });
     } else {
       setIsLinkedChild(false);
       if (socket.connected) socket.disconnect();
     }
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
   }, [user]);
 
   const login = async (loginId, password) => {
@@ -72,6 +102,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      await removePushToken();
       await api.post('/api/logout');
     } catch (e) {
       // ignore
