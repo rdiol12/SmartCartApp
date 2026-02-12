@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import socket from '../socket';
@@ -13,10 +14,12 @@ const ListItemRow = ({ item, listId }) => {
   const [noteText, setNoteText] = useState(item.note || '');
 
   const handleToggle = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     socket.emit('toggle_item', { itemId: item.id, listId, isChecked: !item.is_checked });
   };
 
   const handleDelete = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     socket.emit('delete_item', { itemId: item.id, listId });
   };
 

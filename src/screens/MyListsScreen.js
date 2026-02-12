@@ -8,6 +8,7 @@ import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 import socket from '../socket';
 import { colors, spacing, radius } from '../theme';
+import { updateBadgeCount } from '../utils/badgeCount';
 
 export default function MyListsScreen({ navigation }) {
   const { user, isLinkedChild } = useContext(AuthContext);
@@ -26,6 +27,10 @@ export default function MyListsScreen({ navigation }) {
     try {
       const { data } = await api.get('/api/lists');
       setLists(data.lists);
+      
+      // Update badge count with total unchecked items
+      const totalUnchecked = data.lists.reduce((sum, list) => sum + (list.item_count || 0), 0);
+      updateBadgeCount(totalUnchecked);
     } catch (e) {
       console.error(e);
     } finally {
