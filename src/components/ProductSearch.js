@@ -48,9 +48,9 @@ const ProductSearch = ({ onSelect }) => {
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.resultItem} onPress={() => onSelect(item)}>
-              <Text style={styles.resultName}>{item.item_name}</Text>
-              {item.chain_name && (
-                <Text style={styles.resultMeta}>{item.chain_name}</Text>
+              <Text style={styles.resultName}>{item.name || item.item_name}</Text>
+              {(item.chainname || item.chain_name) && (
+                <Text style={styles.resultMeta}>{item.chainname || item.chain_name}</Text>
               )}
             </TouchableOpacity>
           )}
