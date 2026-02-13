@@ -1,17 +1,57 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from '../context/AuthContext';
+import api from '../api';
+import socket from '../socket';
 import { colors, spacing, radius } from '../theme';
 
 export default function ProductScreen({ route, navigation }) {
   const raw = route.params?.product;
+  const { user } = useContext(AuthContext);
   const [quantity, setQuantity] = useState(1);
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [lists, setLists] = useState([]);
+  const [loadingLists, setLoadingLists] = useState(false);
 
   const product = {
     name: raw?.item_name || 'מוצר לא נמצא',
     price: raw?.price || '—',
     description: raw?.description || 'אין תיאור זמין',
     chain_name: raw?.chain_name || 'לא ידוע',
+  };
+
+  const fetchLists = async () => {
+    setLoadingLists(true);
+    try {
+      const { data } = await api.get('/api/lists');
+      setLists(data.lists || []);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('שגיאה', 'לא ניתן לטעון את הרשימות');
+    } finally {
+      setLoadingLists(false);
+    }
+  };
+
+  const handleAddToList = (list) => {
+    socket.emit('send_item', {
+      listId: parseInt(list.id),
+      itemName: product.name,
+      price: raw?.price || null,
+      quantity,
+      addby: user.id,
+      addat: new Date(),
+      updatedat: new Date(),
+      productId: raw?.item_id || raw?.id || null,
+    });
+    setShowListPicker(false);
+    Alert.alert('נוסף בהצלחה', `${product.name} (x${quantity}) נוסף לרשימה "${list.list_name}"`);
+  };
+
+  const handleOpenListPicker = () => {
+    fetchLists();
+    setShowListPicker(true);
   };
 
   return (
@@ -50,12 +90,49 @@ export default function ProductScreen({ route, navigation }) {
 
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => Alert.alert('נוסף', `נוספו ${quantity} פריטים`)}
+          onPress={handleOpenListPicker}
         >
-          <Ionicons name="cart-outline" size={20} color="#fff" />
-          <Text style={styles.addBtnText}> הוסף לעגלה</Text>
+          <Ionicons name="list-outline" size={20} color="#fff" />
+          <Text style={styles.addBtnText}> הוסף לרשימה</Text>
         </TouchableOpacity>
       </View>
+
+      {/* List Picker Modal */}
+      <Modal visible={showListPicker} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>בחר רשימה</Text>
+              <TouchableOpacity onPress={() => setShowListPicker(false)}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            {loadingLists ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
+            ) : lists.length === 0 ? (
+              <Text style={styles.emptyText}>אין רשימות זמינות</Text>
+            ) : (
+              <FlatList
+                data={lists}
+                keyExtractor={(item) => String(item.id)}
+                style={styles.listPickerList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.listPickerItem}
+                    onPress={() => handleAddToList(item)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.listPickerName}>{item.list_name}</Text>
+                      <Text style={styles.listPickerMeta}>{item.item_count} פריטים</Text>
+                    </View>
+                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -95,4 +172,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, marginTop: spacing.xl,
   },
   addBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.xl },
+  modal: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, maxHeight: '70%' },
+  modalHeader: {
+    flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', textAlign: 'right' },
+  emptyText: { textAlign: 'center', color: colors.textMuted, marginVertical: spacing.xl, fontSize: 14 },
+  listPickerList: { maxHeight: 300 },
+  listPickerItem: {
+    flexDirection: 'row-reverse', alignItems: 'center', padding: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  listPickerName: { fontSize: 15, fontWeight: '600', textAlign: 'right' },
+  listPickerMeta: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 2 },
 });

@@ -9,7 +9,7 @@ import { colors, spacing, radius } from '../theme';
 
 const BADGE_INFO = {
   first_item: { icon: 'star', color: '#f59e0b', label: 'פריט ראשון', desc: 'הוספת את הפריט הראשון!' },
-  shopper_10: { icon: 'cart', color: '#10b981', label: 'קונה מנוסה', desc: 'שילמת על 10 פריטים' },
+  shopper_10: { icon: 'bag-check', color: '#10b981', label: 'קונה מנוסה', desc: 'שילמת על 10 פריטים' },
   streak_7: { icon: 'flame', color: '#ef4444', label: 'רצף שבועי', desc: '7 ימים רצופים של שימוש' },
   list_master: { icon: 'list', color: '#6366f1', label: 'מאסטר רשימות', desc: 'יצרת 10 רשימות' },
   budget_saver: { icon: 'wallet', color: '#8b5cf6', label: 'חוסך תקציב', desc: 'נשארת בתקציב חודש שלם' },

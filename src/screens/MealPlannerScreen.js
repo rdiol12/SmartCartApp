@@ -149,7 +149,7 @@ export default function MealPlannerScreen() {
       <View style={styles.headerRow}>
         <Text style={styles.title}>תפריט שבועי</Text>
         <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateList}>
-          <Ionicons name="cart-outline" size={16} color="#fff" />
+          <Ionicons name="list-outline" size={16} color="#fff" />
           <Text style={styles.generateBtnText}>צור רשימה</Text>
         </TouchableOpacity>
       </View>

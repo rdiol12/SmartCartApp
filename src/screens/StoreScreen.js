@@ -94,7 +94,7 @@ export default function StoreScreen({ navigation }) {
         </View>
       ) : !loading && products.length === 0 && searchQuery.trim().length >= 2 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="cart-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+          <Ionicons name="basket-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
           <Text style={styles.emptyTitle}>לא נמצאו מוצרים</Text>
           <Text style={styles.emptySubtitle}>נסה מילת חיפוש אחרת</Text>
         </View>

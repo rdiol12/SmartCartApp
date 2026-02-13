@@ -10,7 +10,7 @@ import SwipeDownModal from './SwipeDownModal';
 import { colors, spacing, radius } from '../theme';
 
 const DELIVERY_PROVIDERS = [
-  { id: 1, name: 'רמי לוי', url: 'https://www.rami-levy.co.il/he/online', icon: 'cart-outline' },
+  { id: 1, name: 'רמי לוי', url: 'https://www.rami-levy.co.il/he/online', icon: 'storefront-outline' },
   { id: 2, name: 'שופרסל', url: 'https://www.shufersal.co.il/online/he/default', icon: 'storefront-outline' },
   { id: 3, name: 'יוחננוף', url: 'https://yochananof.co.il/', icon: 'basket-outline' },
   { id: 4, name: 'ויקטורי', url: 'https://www.victoryonline.co.il/', icon: 'bag-outline' },

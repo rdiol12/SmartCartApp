@@ -159,7 +159,7 @@ export default function BudgetScreen() {
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
-            <Ionicons name="cart-outline" size={24} color={colors.primary} />
+            <Ionicons name="wallet-outline" size={24} color={colors.primary} />
           </View>
           <Text style={styles.statValue}>₪{totalEstimated.toFixed(0)}</Text>
           <Text style={styles.statLabel}>סה"כ משוער</Text>

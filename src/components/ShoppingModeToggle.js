@@ -10,7 +10,7 @@ const ShoppingModeToggle = ({ active, onToggle }) => {
       onPress={onToggle}
     >
       <Ionicons
-        name={active ? "cart" : "cart-outline"}
+        name={active ? "basket" : "basket-outline"}
         size={16}
         color={active ? '#fff' : colors.primary}
       />
