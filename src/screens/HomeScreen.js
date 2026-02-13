@@ -114,6 +114,13 @@ export default function HomeScreen({ navigation }) {
             <Ionicons name="storefront" size={24} color={colors.success} />
             <Text style={styles.actionText}>חנות</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('ProfileTab', { screen: 'ActivityFeed' })}
+          >
+            <Ionicons name="time" size={24} color={colors.primaryLight} />
+            <Text style={styles.actionText}>יומן פעילות</Text>
+          </TouchableOpacity>
         </View>
       )}
 

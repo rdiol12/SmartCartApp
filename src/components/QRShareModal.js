@@ -1,15 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import SwipeDownModal from './SwipeDownModal';
 import { colors, spacing, radius } from '../theme';
 
 // Simple QR code generator using pure RN Views
-// Encodes data as a basic QR-like grid pattern using a deterministic hash approach
 const generateQRMatrix = (text, size = 25) => {
   const matrix = Array.from({ length: size }, () => Array(size).fill(false));
 
-  // Fixed finder patterns (top-left, top-right, bottom-left)
   const drawFinder = (startRow, startCol) => {
     for (let r = 0; r < 7; r++) {
       for (let c = 0; c < 7; c++) {
@@ -24,28 +23,24 @@ const generateQRMatrix = (text, size = 25) => {
   drawFinder(0, size - 7);
   drawFinder(size - 7, 0);
 
-  // Timing patterns
   for (let i = 7; i < size - 7; i++) {
     matrix[6][i] = i % 2 === 0;
     matrix[i][6] = i % 2 === 0;
   }
 
-  // Encode the text data as a deterministic pattern in the data area
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
     hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
   }
 
-  // Fill data area with a pattern derived from the text
   for (let r = 8; r < size - 8; r++) {
     for (let c = 8; c < size - 8; c++) {
-      if (r === 6 || c === 6) continue; // Skip timing
+      if (r === 6 || c === 6) continue;
       const seed = ((r * 31 + c * 17 + hash) >>> 0) % 7;
       matrix[r][c] = seed < 3;
     }
   }
 
-  // Fill remaining data areas around finders
   for (let r = 8; r < size; r++) {
     for (let c = 0; c < 6; c++) {
       if (r >= size - 7) continue;
@@ -119,67 +114,53 @@ const QRShareModal = ({ visible, onClose, inviteLink }) => {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <View style={styles.header}>
-            <Text style={styles.title}>שתף רשימה</Text>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={22} color={colors.text} />
+    <SwipeDownModal visible={visible} onClose={handleClose}>
+      <View style={styles.header}>
+        <Text style={styles.title}>שתף רשימה</Text>
+        <TouchableOpacity onPress={handleClose}>
+          <Ionicons name="close" size={22} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.body}>
+        <View style={styles.qrWrapper}>
+          {inviteLink ? (
+            <QRCodeView value={inviteLink} size={200} />
+          ) : (
+            <View style={styles.qrPlaceholder}>
+              <Ionicons name="qr-code-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.placeholderText}>אין קישור להצגה</Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.desc}>סרוק את הקוד כדי להצטרף לרשימה</Text>
+
+        {inviteLink ? (
+          <View style={styles.linkSection}>
+            <Text style={styles.linkText} numberOfLines={2}>{inviteLink}</Text>
+            <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
+              <Ionicons
+                name={copied ? 'checkmark-circle' : 'copy-outline'}
+                size={18}
+                color={copied ? colors.success : '#fff'}
+              />
+              <Text style={[styles.copyBtnText, copied && { color: colors.success }]}>
+                {copied ? 'הועתק!' : 'העתק קישור'}
+              </Text>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.body}>
-            <View style={styles.qrWrapper}>
-              {inviteLink ? (
-                <QRCodeView value={inviteLink} size={200} />
-              ) : (
-                <View style={styles.qrPlaceholder}>
-                  <Ionicons name="qr-code-outline" size={48} color={colors.textMuted} />
-                  <Text style={styles.placeholderText}>אין קישור להצגה</Text>
-                </View>
-              )}
-            </View>
-
-            <Text style={styles.desc}>סרוק את הקוד כדי להצטרף לרשימה</Text>
-
-            {inviteLink ? (
-              <View style={styles.linkSection}>
-                <Text style={styles.linkText} numberOfLines={2}>{inviteLink}</Text>
-                <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
-                  <Ionicons
-                    name={copied ? 'checkmark-circle' : 'copy-outline'}
-                    size={18}
-                    color={copied ? colors.success : '#fff'}
-                  />
-                  <Text style={[styles.copyBtnText, copied && { color: colors.success }]}>
-                    {copied ? 'הועתק!' : 'העתק קישור'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-
-          <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
-            <Text style={styles.closeBtnText}>סגור</Text>
-          </TouchableOpacity>
-        </View>
+        ) : null}
       </View>
-    </Modal>
+
+      <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+        <Text style={styles.closeBtnText}>סגור</Text>
+      </TouchableOpacity>
+    </SwipeDownModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  modal: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-  },
   header: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',

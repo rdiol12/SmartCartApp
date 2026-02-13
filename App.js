@@ -31,6 +31,7 @@ import BudgetScreen from './src/screens/BudgetScreen';
 import GamificationScreen from './src/screens/GamificationScreen';
 import MealPlannerScreen from './src/screens/MealPlannerScreen';
 import PantryScreen from './src/screens/PantryScreen';
+import ActivityFeedScreen from './src/screens/ActivityFeedScreen';
 
 // Force RTL for Hebrew (only when not already RTL to avoid iOS crash)
 I18nManager.allowRTL(true);
@@ -134,6 +135,7 @@ function ProfileNavigator() {
       <ProfileStack.Screen name="Gamification" component={GamificationScreen} options={{ title: 'הישגים' }} />
       <ProfileStack.Screen name="MealPlanner" component={MealPlannerScreen} options={{ title: 'תפריט שבועי' }} />
       <ProfileStack.Screen name="Pantry" component={PantryScreen} options={{ title: 'המזווה שלי' }} />
+      <ProfileStack.Screen name="ActivityFeed" component={ActivityFeedScreen} options={{ title: 'יומן פעילות' }} />
     </ProfileStack.Navigator>
   );
 }

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
+import SwipeDownModal from './SwipeDownModal';
 import { colors, spacing, radius } from '../theme';
 
 const ChildAccessModal = ({ visible, onClose, listId }) => {
@@ -46,7 +46,6 @@ const ChildAccessModal = ({ visible, onClose, listId }) => {
         await api.post(`/api/lists/${listId}/children/${childId}`);
       }
 
-      // Update local state
       setChildren((prev) =>
         prev.map((child) =>
           child.id === childId ? { ...child, has_access: !currentHasAccess } : child
@@ -59,83 +58,66 @@ const ChildAccessModal = ({ visible, onClose, listId }) => {
     }
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>ניהול גישת ילדים</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Content */}
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>טוען...</Text>
-            </View>
-          ) : (
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-              {children.length > 0 ? (
-                <>
-                  <Text style={styles.description}>
-                    בחר אילו ילדים יכולים לגשת לרשימה זו
-                  </Text>
-
-                  {children.map((child) => (
-                    <View key={child.id} style={styles.childRow}>
-                      <View style={styles.childInfo}>
-                        <Ionicons name="person-circle-outline" size={32} color={colors.primary} />
-                        <View style={styles.childDetails}>
-                          <Text style={styles.childName}>{child.first_name}</Text>
-                          <Text style={styles.childUsername}>@{child.username}</Text>
-                        </View>
-                      </View>
-
-                      <Switch
-                        value={child.has_access}
-                        onValueChange={() => handleToggleAccess(child.id, child.has_access)}
-                        disabled={updating[child.id]}
-                        trackColor={{ false: colors.border, true: colors.primary + '50' }}
-                        thumbColor={child.has_access ? colors.primary : colors.surface}
-                      />
-                    </View>
-                  ))}
-                </>
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="people-outline" size={48} color={colors.textMuted} />
-                  <Text style={styles.emptyTitle}>אין חשבונות ילדים</Text>
-                  <Text style={styles.emptyText}>
-                    צור חשבונות ילדים בהגדרות המשפחה כדי לנהל גישה
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-          )}
-        </View>
+    <SwipeDownModal visible={visible} onClose={onClose} maxHeight="70%">
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>ניהול גישת ילדים</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <Ionicons name="close" size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      {/* Content */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>טוען...</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {children.length > 0 ? (
+            <>
+              <Text style={styles.description}>
+                בחר אילו ילדים יכולים לגשת לרשימה זו
+              </Text>
+
+              {children.map((child) => (
+                <View key={child.id} style={styles.childRow}>
+                  <View style={styles.childInfo}>
+                    <Ionicons name="person-circle-outline" size={32} color={colors.primary} />
+                    <View style={styles.childDetails}>
+                      <Text style={styles.childName}>{child.first_name}</Text>
+                      <Text style={styles.childUsername}>@{child.username}</Text>
+                    </View>
+                  </View>
+
+                  <Switch
+                    value={child.has_access}
+                    onValueChange={() => handleToggleAccess(child.id, child.has_access)}
+                    disabled={updating[child.id]}
+                    trackColor={{ false: colors.border, true: colors.primary + '50' }}
+                    thumbColor={child.has_access ? colors.primary : colors.surface}
+                  />
+                </View>
+              ))}
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>אין חשבונות ילדים</Text>
+              <Text style={styles.emptyText}>
+                צור חשבונות ילדים בהגדרות המשפחה כדי לנהל גישה
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
+    </SwipeDownModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    maxHeight: '70%',
-  },
   header: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',

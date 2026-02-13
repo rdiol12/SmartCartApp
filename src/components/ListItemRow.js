@@ -8,8 +8,9 @@ import ItemComments from './ItemComments';
 import { colors, spacing, radius } from '../theme';
 import { getCategoryIcon, getCategoryColor } from '../utils/categories';
 import SwipeableListItem from './SwipeableListItem';
+import ReorderControls from './ReorderControls';
 
-const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, members = [] }) => {
+const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, members = [], reorderMode = false, onMoveUp, onMoveDown, isFirst = false, isLast = false }) => {
   const { user } = useContext(AuthContext);
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -127,6 +128,40 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
       </TouchableOpacity>
     </View>
   );
+
+  // In reorder mode, show up/down arrows
+  if (reorderMode) {
+    return (
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        <View style={[styles.row, styles.reorderRow]}>
+          <View style={styles.content}>
+            <ReorderControls
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+              isFirst={isFirst}
+              isLast={isLast}
+            />
+            <View style={styles.info}>
+              <View style={styles.nameRow}>
+                <Text style={styles.categoryIcon}>{getCategoryIcon(item.itemname)}</Text>
+                <Text style={styles.name}>{item.itemname}</Text>
+                {qty > 1 && (
+                  <View style={styles.badgeMuted}>
+                    <Text style={styles.badgeMutedText}>x{qty}</Text>
+                  </View>
+                )}
+                {item.price && (
+                  <View style={styles.badgePrice}>
+                    <Text style={styles.badgePriceText}>₪{Number(item.price).toFixed(2)}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
 
   // In multi-select mode, show checkbox for selection
   if (multiSelectMode) {
@@ -400,9 +435,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderLeftWidth: 4,
   },
-  rowPaid: { backgroundColor: '#f0fdf4', borderColor: colors.success + '30' },
+  rowPaid: { backgroundColor: colors.success + '10', borderColor: colors.success + '30' },
   rowChecked: { opacity: 0.7 },
   rowSelected: { backgroundColor: colors.primary + '15', borderColor: colors.primary },
+  reorderRow: { borderLeftColor: colors.primary, borderLeftWidth: 4 },
   content: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
   checkbox: { padding: 2 },
   info: { flex: 1 },

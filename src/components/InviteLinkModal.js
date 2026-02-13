@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert, Share, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Share, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
+import SwipeDownModal from './SwipeDownModal';
 import { colors, spacing, radius } from '../theme';
 
 const InviteLinkModal = ({ visible, onClose, listId }) => {
@@ -34,49 +35,43 @@ const InviteLinkModal = ({ visible, onClose, listId }) => {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <View style={styles.header}>
-            <Text style={styles.title}>הזמנה לרשימה</Text>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={22} color={colors.text} />
+    <SwipeDownModal visible={visible} onClose={handleClose}>
+      <View style={styles.header}>
+        <Text style={styles.title}>הזמנה לרשימה</Text>
+        <TouchableOpacity onPress={handleClose}>
+          <Ionicons name="close" size={22} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.body}>
+        {!inviteLink ? (
+          <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+            <Ionicons name="link-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4, marginBottom: spacing.md }} />
+            <Text style={styles.desc}>צור לינק הזמנה כדי להזמין חברים לרשימה</Text>
+            <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={generateLink} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnText}>צור לינק הזמנה</Text>}
             </TouchableOpacity>
           </View>
-
-          <View style={styles.body}>
-            {!inviteLink ? (
-              <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
-                <Ionicons name="link-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4, marginBottom: spacing.md }} />
-                <Text style={styles.desc}>צור לינק הזמנה כדי להזמין חברים לרשימה</Text>
-                <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={generateLink} disabled={loading}>
-                  {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnText}>צור לינק הזמנה</Text>}
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.shareLabel}>שתף את הלינק הזה עם חברים:</Text>
-                <TextInput style={styles.linkInput} value={inviteLink} editable={false} selectTextOnFocus />
-                <TouchableOpacity style={styles.btn} onPress={shareLink}>
-                  <Ionicons name="share-outline" size={18} color="#fff" />
-                  <Text style={styles.btnText}> שתף</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+        ) : (
+          <View>
+            <Text style={styles.shareLabel}>שתף את הלינק הזה עם חברים:</Text>
+            <TextInput style={styles.linkInput} value={inviteLink} editable={false} selectTextOnFocus />
+            <TouchableOpacity style={styles.btn} onPress={shareLink}>
+              <Ionicons name="share-outline" size={18} color="#fff" />
+              <Text style={styles.btnText}> שתף</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
-            <Text style={styles.closeBtnText}>סגור</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </View>
-    </Modal>
+
+      <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+        <Text style={styles.closeBtnText}>סגור</Text>
+      </TouchableOpacity>
+    </SwipeDownModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.xl },
-  modal: { backgroundColor: colors.surface, borderRadius: radius.lg },
   header: {
     flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center',
     padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border,

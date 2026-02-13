@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Animated,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import SwipeDownModal from '../components/SwipeDownModal';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 import socket from '../socket';
@@ -27,6 +28,7 @@ import QRShareModal from '../components/QRShareModal';
 import ActiveViewers from '../components/ActiveViewers';
 import ActivityLog from '../components/ActivityLog';
 import ListChat from '../components/ListChat';
+import DeliveryModal from '../components/DeliveryModal';
 import { colors, spacing, radius } from '../theme';
 import { shareList, copyToClipboard } from '../utils/exportList';
 import { categorizeItem, categories } from '../utils/categories';
@@ -74,6 +76,8 @@ export default function ListDetailScreen({ route, navigation }) {
   const [qrInviteLink, setQrInviteLink] = useState('');
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showDelivery, setShowDelivery] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [requestMsg, setRequestMsg] = useState('');
   const [sortBy, setSortBy] = useState('default');
   const [filter, setFilter] = useState('all');
@@ -81,6 +85,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [shoppingMode, setShoppingMode] = useState(false);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [reorderMode, setReorderMode] = useState(false);
 
   // Undo delete
   const [deletedItem, setDeletedItem] = useState(null);
@@ -162,6 +167,16 @@ export default function ListDetailScreen({ route, navigation }) {
     const onItemAssigned = ({ itemId, assignedTo, assignedToName }) => {
       setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, assigned_to: assignedTo, assigned_to_name: assignedToName } : i)));
     };
+    const onItemsReordered = ({ items: reorderedItems }) => {
+      setItems((prev) => {
+        const updated = [...prev];
+        reorderedItems.forEach(({ itemId, sortOrder }) => {
+          const item = updated.find((i) => i.id === itemId);
+          if (item) item.sort_order = sortOrder;
+        });
+        return updated;
+      });
+    };
 
     socket.on('receive_item', onReceiveItem);
     socket.on('item_status_changed', onItemStatusChanged);
@@ -171,6 +186,7 @@ export default function ListDetailScreen({ route, navigation }) {
     socket.on('item_unpaid', onItemUnpaid);
     socket.on('quantity_updated', onQuantityUpdated);
     socket.on('item_assigned', onItemAssigned);
+    socket.on('items_reordered', onItemsReordered);
 
     return () => {
       socket.off('receive_item', onReceiveItem);
@@ -181,6 +197,7 @@ export default function ListDetailScreen({ route, navigation }) {
       socket.off('item_unpaid', onItemUnpaid);
       socket.off('quantity_updated', onQuantityUpdated);
       socket.off('item_assigned', onItemAssigned);
+      socket.off('items_reordered', onItemsReordered);
     };
   }, [listId]);
 
@@ -283,6 +300,33 @@ export default function ListDetailScreen({ route, navigation }) {
     });
     setSelectedItems([]);
     setMultiSelectMode(false);
+  };
+
+  const handleMoveItem = (itemId, direction) => {
+    const sorted = [...items].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const idx = sorted.findIndex((i) => i.id === itemId);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+    const itemA = sorted[idx];
+    const itemB = sorted[swapIdx];
+    const orderA = itemA.sort_order || idx;
+    const orderB = itemB.sort_order || swapIdx;
+
+    setItems((prev) => prev.map((i) => {
+      if (i.id === itemA.id) return { ...i, sort_order: orderB };
+      if (i.id === itemB.id) return { ...i, sort_order: orderA };
+      return i;
+    }));
+
+    socket.emit('reorder_items', {
+      listId: parseInt(listId),
+      items: [
+        { itemId: itemA.id, sortOrder: orderB },
+        { itemId: itemB.id, sortOrder: orderA },
+      ],
+    });
   };
 
   const handleDeleteList = () => {
@@ -392,7 +436,9 @@ export default function ListDetailScreen({ route, navigation }) {
   }
 
   // Apply sorting
-  if (sortBy === 'name') {
+  if (sortBy === 'default') {
+    displayItems = [...displayItems].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  } else if (sortBy === 'name') {
     displayItems = [...displayItems].sort((a, b) => a.itemname.localeCompare(b.itemname, 'he'));
   } else if (sortBy === 'category') {
     const catOrder = categories.map(c => c.name);
@@ -466,39 +512,12 @@ export default function ListDetailScreen({ route, navigation }) {
             <TouchableOpacity style={styles.headerBtn} onPress={() => setShowChat(true)}>
               <Ionicons name="chatbubbles-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowActivityLog(true)}>
-              <Ionicons name="time-outline" size={18} color={colors.primary} />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.headerBtn} onPress={() => shareList(listName, items)}>
               <Ionicons name="share-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowPriceComparison(true)}>
-              <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowHeaderMenu(true)}>
+              <Ionicons name="ellipsis-vertical" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowTemplates(true)}>
-              <Ionicons name="albums-outline" size={18} color={colors.primary} />
-            </TouchableOpacity>
-            {userRole === 'admin' && (
-              <>
-                <TouchableOpacity style={styles.headerBtn} onPress={() => setShowChildAccess(true)}>
-                  <Ionicons name="people-outline" size={18} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerBtn} onPress={() => setShowInvite(true)}>
-                  <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerBtn} onPress={handleOpenQRShare}>
-                  <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerBtn} onPress={handleDeleteList}>
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                </TouchableOpacity>
-              </>
-            )}
-            {userRole === 'member' && (
-              <TouchableOpacity style={styles.headerBtn} onPress={handleLeaveList}>
-                <Ionicons name="exit-outline" size={18} color={colors.warning} />
-              </TouchableOpacity>
-            )}
           </View>
         )}
       </View>
@@ -556,6 +575,18 @@ export default function ListDetailScreen({ route, navigation }) {
               <Ionicons name="checkmark-done-outline" size={16} color={colors.primary} />
               <Text style={styles.multiSelectText}>בחירה מרובה</Text>
             </TouchableOpacity>
+            {!shoppingMode && (
+              <TouchableOpacity
+                style={[styles.multiSelectBtn, reorderMode && styles.routeBtnActive]}
+                onPress={() => {
+                  setReorderMode(!reorderMode);
+                  if (!reorderMode) setSortBy('default');
+                }}
+              >
+                <Ionicons name="reorder-three-outline" size={16} color={reorderMode ? '#fff' : colors.primary} />
+                <Text style={[styles.multiSelectText, reorderMode && styles.routeBtnTextActive]}>סדר ידני</Text>
+              </TouchableOpacity>
+            )}
             {shoppingMode && (
               <TouchableOpacity
                 style={[styles.multiSelectBtn, sortBy === 'route' && styles.routeBtnActive]}
@@ -686,6 +717,11 @@ export default function ListDetailScreen({ route, navigation }) {
                 isSelected={selectedItems.includes(item.id)}
                 onSelect={toggleItemSelection}
                 members={members}
+                reorderMode={reorderMode}
+                onMoveUp={() => handleMoveItem(item.id, 'up')}
+                onMoveDown={() => handleMoveItem(item.id, 'down')}
+                isFirst={displayItems.indexOf(item) === 0}
+                isLast={displayItems.indexOf(item) === displayItems.length - 1}
               />
             </View>
           )}
@@ -753,6 +789,71 @@ export default function ListDetailScreen({ route, navigation }) {
         onClose={() => setShowChat(false)}
         listId={listId}
       />
+      <DeliveryModal
+        visible={showDelivery}
+        onClose={() => setShowDelivery(false)}
+        listId={listId}
+        listName={listName}
+        items={items}
+      />
+      {/* Header overflow menu */}
+      <SwipeDownModal visible={showHeaderMenu} onClose={() => setShowHeaderMenu(false)}>
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuTitle}>אפשרויות</Text>
+          <TouchableOpacity onPress={() => setShowHeaderMenu(false)}>
+            <Ionicons name="close" size={22} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.menuContent}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); setShowActivityLog(true); }}>
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
+            <Text style={styles.menuItemText}>יומן פעילות</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); setShowPriceComparison(true); }}>
+            <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+            <Text style={styles.menuItemText}>השוואת מחירים</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); setShowDelivery(true); }}>
+            <Ionicons name="bicycle-outline" size={20} color={colors.primary} />
+            <Text style={styles.menuItemText}>הזמנת משלוח</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); setShowTemplates(true); }}>
+            <Ionicons name="albums-outline" size={20} color={colors.primary} />
+            <Text style={styles.menuItemText}>תבניות רשימה</Text>
+          </TouchableOpacity>
+          {userRole === 'admin' && (
+            <>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); setShowChildAccess(true); }}>
+                <Ionicons name="people-outline" size={20} color={colors.primary} />
+                <Text style={styles.menuItemText}>ניהול גישת ילדים</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); setShowInvite(true); }}>
+                <Ionicons name="person-add-outline" size={20} color={colors.primary} />
+                <Text style={styles.menuItemText}>הזמנה לרשימה</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); handleOpenQRShare(); }}>
+                <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+                <Text style={styles.menuItemText}>שיתוף QR</Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); handleDeleteList(); }}>
+                <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                <Text style={[styles.menuItemText, { color: colors.danger }]}>מחיקת רשימה</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {userRole === 'member' && (
+            <>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowHeaderMenu(false); handleLeaveList(); }}>
+                <Ionicons name="exit-outline" size={20} color={colors.warning} />
+                <Text style={[styles.menuItemText, { color: colors.warning }]}>עזוב רשימה</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </SwipeDownModal>
       {/* Undo delete toast */}
       {deletedItem && (
         <Animated.View style={[styles.undoToast, { opacity: undoOpacity }]}>
@@ -832,7 +933,7 @@ const styles = StyleSheet.create({
     bottom: spacing.xl,
     left: spacing.lg,
     right: spacing.lg,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.text,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -891,4 +992,39 @@ const styles = StyleSheet.create({
   },
   routeHeaderIcon: { fontSize: 18 },
   routeHeaderText: { fontSize: 14, fontWeight: '700' },
+  menuHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  menuContent: {
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  menuItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
+  },
 });

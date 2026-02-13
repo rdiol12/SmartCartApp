@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, Modal, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
+import SwipeDownModal from './SwipeDownModal';
 import { colors, spacing, radius } from '../theme';
 
 const PriceComparisonModal = ({ visible, onClose, listId }) => {
   const [loading, setLoading] = useState(true);
   const [comparison, setComparison] = useState(null);
-  const [activeTab, setActiveTab] = useState('stores'); // 'stores' | 'bestmix'
+  const [activeTab, setActiveTab] = useState('stores');
 
   useEffect(() => {
     if (visible && listId) {
@@ -31,247 +32,227 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
     }
   };
 
-  if (!visible) return null;
-
   const hasBestMix = comparison?.bestMix && comparison.bestMix.storeCount > 1;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>השוואת מחירים</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+    <SwipeDownModal visible={visible} onClose={onClose} maxHeight="90%">
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>השוואת מחירים</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <Ionicons name="close" size={24} color={colors.text} />
+        </TouchableOpacity>
+      </View>
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>משווה מחירים ברשתות...</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>משווה מחירים ברשתות...</Text>
+        </View>
+      ) : comparison ? (
+        <>
+          {/* Tabs */}
+          {hasBestMix && (
+            <View style={styles.tabs}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'stores' && styles.tabActive]}
+                onPress={() => setActiveTab('stores')}
+              >
+                <Ionicons name="storefront-outline" size={16} color={activeTab === 'stores' ? '#fff' : colors.primary} />
+                <Text style={[styles.tabText, activeTab === 'stores' && styles.tabTextActive]}>לפי חנות</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'bestmix' && styles.tabActive]}
+                onPress={() => setActiveTab('bestmix')}
+              >
+                <Ionicons name="flash-outline" size={16} color={activeTab === 'bestmix' ? '#fff' : colors.primary} />
+                <Text style={[styles.tabText, activeTab === 'bestmix' && styles.tabTextActive]}>מיקס חכם</Text>
+              </TouchableOpacity>
             </View>
-          ) : comparison ? (
-            <>
-              {/* Tabs */}
-              {hasBestMix && (
-                <View style={styles.tabs}>
-                  <TouchableOpacity
-                    style={[styles.tab, activeTab === 'stores' && styles.tabActive]}
-                    onPress={() => setActiveTab('stores')}
-                  >
-                    <Ionicons name="storefront-outline" size={16} color={activeTab === 'stores' ? '#fff' : colors.primary} />
-                    <Text style={[styles.tabText, activeTab === 'stores' && styles.tabTextActive]}>לפי חנות</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.tab, activeTab === 'bestmix' && styles.tabActive]}
-                    onPress={() => setActiveTab('bestmix')}
-                  >
-                    <Ionicons name="flash-outline" size={16} color={activeTab === 'bestmix' ? '#fff' : colors.primary} />
-                    <Text style={[styles.tabText, activeTab === 'bestmix' && styles.tabTextActive]}>מיקס חכם</Text>
-                  </TouchableOpacity>
+          )}
+
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Summary Card */}
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>{comparison.totalItems}</Text>
+                  <Text style={styles.summaryLabel}>פריטים</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>{comparison.matchedItems || 0}</Text>
+                  <Text style={styles.summaryLabel}>נמצאו</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>{comparison.chains?.length || 0}</Text>
+                  <Text style={styles.summaryLabel}>רשתות</Text>
+                </View>
+              </View>
+
+              {comparison.savings > 0 && (
+                <View style={styles.savingsBadge}>
+                  <Ionicons name="trending-down" size={16} color={colors.success} />
+                  <Text style={styles.savingsText}>
+                    חסכון של עד ₪{comparison.savings.toFixed(2)} בבחירת הרשת הזולה
+                  </Text>
                 </View>
               )}
+            </View>
 
-              <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Summary Card */}
-                <View style={styles.summaryCard}>
-                  <View style={styles.summaryRow}>
-                    <View style={styles.summaryItem}>
-                      <Text style={styles.summaryValue}>{comparison.totalItems}</Text>
-                      <Text style={styles.summaryLabel}>פריטים</Text>
+            {activeTab === 'stores' ? (
+              <>
+                {comparison.cheapest && (
+                  <View style={styles.winnerCard}>
+                    <View style={styles.winnerIcon}>
+                      <Ionicons name="trophy" size={24} color="#f59e0b" />
                     </View>
-                    <View style={styles.summaryItem}>
-                      <Text style={styles.summaryValue}>{comparison.matchedItems || 0}</Text>
-                      <Text style={styles.summaryLabel}>נמצאו</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.winnerLabel}>הרשת הזולה ביותר</Text>
+                      <Text style={styles.winnerName}>{comparison.cheapest.chain_name}</Text>
                     </View>
-                    <View style={styles.summaryItem}>
-                      <Text style={styles.summaryValue}>{comparison.chains?.length || 0}</Text>
-                      <Text style={styles.summaryLabel}>רשתות</Text>
-                    </View>
+                    <Text style={styles.winnerPrice}>₪{comparison.cheapest.total?.toFixed(2)}</Text>
                   </View>
+                )}
 
-                  {comparison.savings > 0 && (
-                    <View style={styles.savingsBadge}>
-                      <Ionicons name="trending-down" size={16} color={colors.success} />
-                      <Text style={styles.savingsText}>
-                        חסכון של עד ₪{comparison.savings.toFixed(2)} בבחירת הרשת הזולה
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                {comparison.chains?.map((chain, index) => {
+                  const isCheapest = index === 0 && comparison.chains.length > 1;
+                  const diff = comparison.cheapest ? chain.total - comparison.cheapest.total : 0;
 
-                {activeTab === 'stores' ? (
-                  /* === BY STORE TAB === */
-                  <>
-                    {comparison.cheapest && (
-                      <View style={styles.winnerCard}>
-                        <View style={styles.winnerIcon}>
-                          <Ionicons name="trophy" size={24} color="#f59e0b" />
+                  return (
+                    <View key={chain.chain_id || index} style={[styles.chainCard, isCheapest && styles.chainCardCheapest]}>
+                      <View style={styles.chainHeader}>
+                        <View style={styles.chainNameRow}>
+                          <Text style={styles.chainRank}>#{index + 1}</Text>
+                          <Text style={styles.chainName}>{chain.chain_name}</Text>
+                          {isCheapest && <Ionicons name="checkmark-circle" size={16} color={colors.success} />}
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.winnerLabel}>הרשת הזולה ביותר</Text>
-                          <Text style={styles.winnerName}>{comparison.cheapest.chain_name}</Text>
+                        <View style={{ alignItems: 'flex-start' }}>
+                          <Text style={[styles.chainTotal, isCheapest && styles.chainTotalCheapest]}>
+                            ₪{chain.total.toFixed(2)}
+                          </Text>
+                          {diff > 0 && (
+                            <Text style={styles.chainDiff}>+₪{diff.toFixed(2)}</Text>
+                          )}
                         </View>
-                        <Text style={styles.winnerPrice}>₪{comparison.cheapest.total?.toFixed(2)}</Text>
                       </View>
-                    )}
 
-                    {comparison.chains?.map((chain, index) => {
-                      const isCheapest = index === 0 && comparison.chains.length > 1;
-                      const diff = comparison.cheapest ? chain.total - comparison.cheapest.total : 0;
+                      <View style={styles.chainMeta}>
+                        <Text style={styles.chainMetaText}>
+                          {chain.itemCount} פריטים זמינים
+                        </Text>
+                        {chain.missingCount > 0 && (
+                          <Text style={styles.chainMissing}>
+                            {chain.missingCount} חסרים
+                          </Text>
+                        )}
+                      </View>
+
+                      {chain.items?.length > 0 && (
+                        <View style={styles.itemsList}>
+                          {chain.items.map((item, idx) => (
+                            <View key={idx} style={styles.itemRow}>
+                              <View style={styles.itemInfo}>
+                                <Text style={styles.itemName}>{item.item_name}</Text>
+                                {item.quantity > 1 && <Text style={styles.itemQty}>x{item.quantity}</Text>}
+                              </View>
+                              <Text style={styles.itemPrice}>₪{item.price?.toFixed(2)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {chain.missing?.length > 0 && (
+                        <View style={styles.missingSection}>
+                          <Text style={styles.missingTitle}>חסרים ({chain.missing.length})</Text>
+                          {chain.missing.map((name, idx) => (
+                            <Text key={idx} style={styles.missingItem}>• {name}</Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                {comparison.bestMix && (
+                  <>
+                    <View style={styles.bestMixHeader}>
+                      <View style={styles.bestMixIcon}>
+                        <Ionicons name="flash" size={28} color="#fff" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.bestMixTitle}>מיקס חכם</Text>
+                        <Text style={styles.bestMixSubtitle}>
+                          קנה מ-{comparison.bestMix.storeCount} חנויות שונות לחיסכון מקסימלי
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-start' }}>
+                        <Text style={styles.bestMixTotal}>₪{comparison.bestMix.total.toFixed(2)}</Text>
+                        {comparison.bestMixSavings > 0 && (
+                          <Text style={styles.bestMixSaving}>חסכון ₪{comparison.bestMixSavings.toFixed(2)}</Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {comparison.bestMix.stores.map((storeName) => {
+                      const storeItems = comparison.bestMix.items.filter((i) => i.store === storeName);
+                      const storeTotal = storeItems.reduce((s, i) => s + i.subtotal, 0);
 
                       return (
-                        <View key={chain.chain_id || index} style={[styles.chainCard, isCheapest && styles.chainCardCheapest]}>
-                          <View style={styles.chainHeader}>
-                            <View style={styles.chainNameRow}>
-                              <Text style={styles.chainRank}>#{index + 1}</Text>
-                              <Text style={styles.chainName}>{chain.chain_name}</Text>
-                              {isCheapest && <Ionicons name="checkmark-circle" size={16} color={colors.success} />}
+                        <View key={storeName} style={styles.bestMixStore}>
+                          <View style={styles.bestMixStoreHeader}>
+                            <View style={styles.bestMixStoreNameRow}>
+                              <Ionicons name="storefront" size={16} color={colors.primary} />
+                              <Text style={styles.bestMixStoreName}>{storeName}</Text>
                             </View>
-                            <View style={{ alignItems: 'flex-start' }}>
-                              <Text style={[styles.chainTotal, isCheapest && styles.chainTotalCheapest]}>
-                                ₪{chain.total.toFixed(2)}
-                              </Text>
-                              {diff > 0 && (
-                                <Text style={styles.chainDiff}>+₪{diff.toFixed(2)}</Text>
-                              )}
-                            </View>
+                            <Text style={styles.bestMixStoreTotal}>₪{storeTotal.toFixed(2)}</Text>
                           </View>
-
-                          <View style={styles.chainMeta}>
-                            <Text style={styles.chainMetaText}>
-                              {chain.itemCount} פריטים זמינים
-                            </Text>
-                            {chain.missingCount > 0 && (
-                              <Text style={styles.chainMissing}>
-                                {chain.missingCount} חסרים
-                              </Text>
-                            )}
-                          </View>
-
-                          {chain.items?.length > 0 && (
-                            <View style={styles.itemsList}>
-                              {chain.items.map((item, idx) => (
-                                <View key={idx} style={styles.itemRow}>
-                                  <View style={styles.itemInfo}>
-                                    <Text style={styles.itemName}>{item.item_name}</Text>
-                                    {item.quantity > 1 && <Text style={styles.itemQty}>x{item.quantity}</Text>}
-                                  </View>
-                                  <Text style={styles.itemPrice}>₪{item.price?.toFixed(2)}</Text>
-                                </View>
-                              ))}
+                          {storeItems.map((item, idx) => (
+                            <View key={idx} style={styles.itemRow}>
+                              <View style={styles.itemInfo}>
+                                <Text style={styles.itemName}>{item.item_name}</Text>
+                                {item.quantity > 1 && <Text style={styles.itemQty}>x{item.quantity}</Text>}
+                              </View>
+                              <Text style={styles.itemPrice}>₪{item.price?.toFixed(2)}</Text>
                             </View>
-                          )}
-
-                          {chain.missing?.length > 0 && (
-                            <View style={styles.missingSection}>
-                              <Text style={styles.missingTitle}>חסרים ({chain.missing.length})</Text>
-                              {chain.missing.map((name, idx) => (
-                                <Text key={idx} style={styles.missingItem}>• {name}</Text>
-                              ))}
-                            </View>
-                          )}
+                          ))}
                         </View>
                       );
                     })}
                   </>
-                ) : (
-                  /* === BEST MIX TAB === */
-                  <>
-                    {comparison.bestMix && (
-                      <>
-                        <View style={styles.bestMixHeader}>
-                          <View style={styles.bestMixIcon}>
-                            <Ionicons name="flash" size={28} color="#fff" />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.bestMixTitle}>מיקס חכם</Text>
-                            <Text style={styles.bestMixSubtitle}>
-                              קנה מ-{comparison.bestMix.storeCount} חנויות שונות לחיסכון מקסימלי
-                            </Text>
-                          </View>
-                          <View style={{ alignItems: 'flex-start' }}>
-                            <Text style={styles.bestMixTotal}>₪{comparison.bestMix.total.toFixed(2)}</Text>
-                            {comparison.bestMixSavings > 0 && (
-                              <Text style={styles.bestMixSaving}>חסכון ₪{comparison.bestMixSavings.toFixed(2)}</Text>
-                            )}
-                          </View>
-                        </View>
-
-                        {/* Group items by store */}
-                        {comparison.bestMix.stores.map((storeName) => {
-                          const storeItems = comparison.bestMix.items.filter((i) => i.store === storeName);
-                          const storeTotal = storeItems.reduce((s, i) => s + i.subtotal, 0);
-
-                          return (
-                            <View key={storeName} style={styles.bestMixStore}>
-                              <View style={styles.bestMixStoreHeader}>
-                                <View style={styles.bestMixStoreNameRow}>
-                                  <Ionicons name="storefront" size={16} color={colors.primary} />
-                                  <Text style={styles.bestMixStoreName}>{storeName}</Text>
-                                </View>
-                                <Text style={styles.bestMixStoreTotal}>₪{storeTotal.toFixed(2)}</Text>
-                              </View>
-                              {storeItems.map((item, idx) => (
-                                <View key={idx} style={styles.itemRow}>
-                                  <View style={styles.itemInfo}>
-                                    <Text style={styles.itemName}>{item.item_name}</Text>
-                                    {item.quantity > 1 && <Text style={styles.itemQty}>x{item.quantity}</Text>}
-                                  </View>
-                                  <Text style={styles.itemPrice}>₪{item.price?.toFixed(2)}</Text>
-                                </View>
-                              ))}
-                            </View>
-                          );
-                        })}
-                      </>
-                    )}
-                  </>
                 )}
+              </>
+            )}
 
-                {(!comparison.chains || comparison.chains.length === 0) && (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
-                    <Text style={styles.emptyText}>לא נמצאו מחירים לפריטים ברשימה</Text>
-                    <Text style={styles.emptySubtext}>הוסף פריטים מחיפוש המוצרים או סרוק ברקוד</Text>
-                  </View>
-                )}
+            {(!comparison.chains || comparison.chains.length === 0) && (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+                <Text style={styles.emptyText}>לא נמצאו מחירים לפריטים ברשימה</Text>
+                <Text style={styles.emptySubtext}>הוסף פריטים מחיפוש המוצרים או סרוק ברקוד</Text>
+              </View>
+            )}
 
-                {comparison.unmatchedItems > 0 && (
-                  <View style={styles.unmatchedNote}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-                    <Text style={styles.unmatchedText}>
-                      {comparison.unmatchedItems} פריטים לא נמצאו בבסיס הנתונים
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            </>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>שגיאה בטעינת ההשוואה</Text>
-            </View>
-          )}
+            {comparison.unmatchedItems > 0 && (
+              <View style={styles.unmatchedNote}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+                <Text style={styles.unmatchedText}>
+                  {comparison.unmatchedItems} פריטים לא נמצאו בבסיס הנתונים
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>שגיאה בטעינת ההשוואה</Text>
         </View>
-      </View>
-    </Modal>
+      )}
+    </SwipeDownModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    maxHeight: '90%',
-  },
   header: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -346,18 +327,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: '#fef3c7',
+    backgroundColor: colors.warning + '15',
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#f59e0b30',
+    borderColor: colors.warning + '30',
   },
   winnerIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fef3c7',
+    backgroundColor: colors.warning + '15',
     alignItems: 'center',
     justifyContent: 'center',
   },

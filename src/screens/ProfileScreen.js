@@ -119,6 +119,10 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="copy-outline" size={22} color={colors.primary} />
             <Text style={styles.quickLinkText}>תבניות</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('ActivityFeed')}>
+            <Ionicons name="time-outline" size={22} color={colors.primaryLight} />
+            <Text style={styles.quickLinkText}>יומן פעילות</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -214,8 +218,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', textAlign: 'right' },
   subtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.xl },
   alert: { padding: spacing.md, borderRadius: radius.sm, marginBottom: spacing.lg },
-  alertError: { backgroundColor: '#fef2f2' },
-  alertSuccess: { backgroundColor: '#f0fdf4' },
+  alertError: { backgroundColor: colors.danger + '10' },
+  alertSuccess: { backgroundColor: colors.success + '10' },
   alertText: { fontSize: 13, textAlign: 'center', fontWeight: '500' },
   card: {
     backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg,

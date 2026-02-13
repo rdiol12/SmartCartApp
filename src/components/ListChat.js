@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, FlatList, TextInput,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
+  Animated, PanResponder, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 import socket from '../socket';
 import { colors, spacing, radius } from '../theme';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const DISMISS_THRESHOLD = 80;
 
 const getTimeString = (timestamp) => {
   const date = new Date(timestamp);
@@ -23,6 +27,36 @@ const ListChat = ({ visible, onClose, listId }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef(null);
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        gs.dy > 8 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) translateY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > DISMISS_THRESHOLD || gs.vy > 0.5) {
+          Animated.timing(translateY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            onClose();
+            translateY.setValue(0);
+          });
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (!visible || !listId) return;
@@ -66,7 +100,6 @@ const ListChat = ({ visible, onClose, listId }) => {
 
     socket.emit('send_chat_message', messageData);
 
-    // Optimistically add the message locally
     const optimisticMsg = {
       id: `temp_${Date.now()}`,
       user_id: user.id,
@@ -110,71 +143,80 @@ const ListChat = ({ visible, onClose, listId }) => {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeHeaderBtn}>
-            <Ionicons name="arrow-forward" size={22} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>צ'אט רשימה</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
-        {/* Messages */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+      <Animated.View style={[styles.container, { transform: [{ translateY }] }]}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {/* Drag handle */}
+          <View {...panResponder.panHandlers}>
+            <View style={styles.handleContainer}>
+              <View style={styles.handle} />
+            </View>
           </View>
-        ) : messages.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
-            <Text style={styles.emptyText}>אין הודעות עדיין</Text>
-            <Text style={styles.emptySubtext}>שלח הודעה ראשונה לרשימה</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item, index) => `${item.id || index}`}
-            renderItem={renderMessage}
-            contentContainerStyle={styles.messagesList}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }}
-          />
-        )}
 
-        {/* Input bar */}
-        <View style={styles.inputBar}>
-          <TouchableOpacity
-            style={[styles.sendBtn, !newMessage.trim() && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!newMessage.trim()}
-          >
-            <Ionicons
-              name="send"
-              size={20}
-              color={newMessage.trim() ? '#fff' : colors.textMuted}
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} style={styles.closeHeaderBtn}>
+              <Ionicons name="arrow-forward" size={22} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.title}>צ'אט רשימה</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          {/* Messages */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : messages.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+              <Text style={styles.emptyText}>אין הודעות עדיין</Text>
+              <Text style={styles.emptySubtext}>שלח הודעה ראשונה לרשימה</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item, index) => `${item.id || index}`}
+              renderItem={renderMessage}
+              contentContainerStyle={styles.messagesList}
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }}
             />
-          </TouchableOpacity>
-          <TextInput
-            style={styles.input}
-            placeholder="הקלד הודעה..."
-            value={newMessage}
-            onChangeText={setNewMessage}
-            textAlign="right"
-            multiline
-            maxLength={1000}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-          />
-        </View>
-      </KeyboardAvoidingView>
+          )}
+
+          {/* Input bar */}
+          <View style={styles.inputBar}>
+            <TouchableOpacity
+              style={[styles.sendBtn, !newMessage.trim() && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!newMessage.trim()}
+            >
+              <Ionicons
+                name="send"
+                size={20}
+                color={newMessage.trim() ? '#fff' : colors.textMuted}
+              />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="הקלד הודעה..."
+              value={newMessage}
+              onChangeText={setNewMessage}
+              textAlign="right"
+              multiline
+              maxLength={1000}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </Modal>
   );
 };
@@ -184,12 +226,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  handleContainer: {
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    backgroundColor: colors.surface,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+  },
   header: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: spacing.lg,
-    paddingTop: spacing.xxl + spacing.lg,
+    paddingTop: spacing.lg,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
