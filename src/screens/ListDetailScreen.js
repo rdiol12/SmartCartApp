@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Animated,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Animated, ScrollView, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SwipeDownModal from '../components/SwipeDownModal';
@@ -86,6 +86,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
   const [reorderMode, setReorderMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Undo delete
   const [deletedItem, setDeletedItem] = useState(null);
@@ -200,6 +201,21 @@ export default function ListDetailScreen({ route, navigation }) {
       socket.off('items_reordered', onItemsReordered);
     };
   }, [listId]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await api.get(`/api/lists/${listId}/items`);
+      setList(data.list);
+      setItems(data.items);
+      setMembers(data.members);
+      setUserRole(data.userRole);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleAddItem = () => {
     if (!itemName.trim()) return;
@@ -496,6 +512,18 @@ export default function ListDetailScreen({ route, navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: spacing.lg }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+          />
+        }
+      >
       {/* Active Viewers */}
       <ActiveViewers listId={listId} />
 
@@ -670,28 +698,24 @@ export default function ListDetailScreen({ route, navigation }) {
       </View>
 
       {/* Items List */}
-      {items.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="basket-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
-          <Text style={styles.emptyTitle}>הרשימה ריקה</Text>
-          <Text style={styles.emptySubtitle}>הוסף פריטים למעלה כדי להתחיל</Text>
-        </View>
+      {displayItems.length === 0 ? (
+        items.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="basket-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+            <Text style={styles.emptyTitle}>הרשימה ריקה</Text>
+            <Text style={styles.emptySubtitle}>הוסף פריטים למעלה כדי להתחיל</Text>
+          </View>
+        ) : (searchQuery || filter !== 'all') ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
+            <Text style={styles.emptyTitle}>לא נמצאו פריטים</Text>
+            <Text style={styles.emptySubtitle}>נסה חיפוש או סינון אחר</Text>
+          </View>
+        ) : null
       ) : (
-        <FlatList
-          data={displayItems}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={{ paddingBottom: spacing.xl }}
-          ListEmptyComponent={
-            searchQuery || filter !== 'all' ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
-                <Text style={styles.emptyTitle}>לא נמצאו פריטים</Text>
-                <Text style={styles.emptySubtitle}>נסה חיפוש או סינון אחר</Text>
-              </View>
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <View>
+        <View style={{ paddingBottom: spacing.xl }}>
+          {displayItems.map((item, index) => (
+            <View key={String(item.id)}>
               {categoryHeaders[item.id] && (
                 <View style={styles.categoryHeader}>
                   <Text style={styles.categoryHeaderIcon}>{categoryHeaders[item.id].icon}</Text>
@@ -720,13 +744,15 @@ export default function ListDetailScreen({ route, navigation }) {
                 reorderMode={reorderMode}
                 onMoveUp={() => handleMoveItem(item.id, 'up')}
                 onMoveDown={() => handleMoveItem(item.id, 'down')}
-                isFirst={displayItems.indexOf(item) === 0}
-                isLast={displayItems.indexOf(item) === displayItems.length - 1}
+                isFirst={index === 0}
+                isLast={index === displayItems.length - 1}
               />
             </View>
-          )}
-        />
+          ))}
+        </View>
       )}
+
+      </ScrollView>
 
       {/* Modals */}
       <InviteLinkModal visible={showInvite} onClose={() => setShowInvite(false)} listId={listId} />
@@ -868,7 +894,7 @@ export default function ListDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
+  container: { flex: 1, backgroundColor: colors.bg },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
   header: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md },
   title: { fontSize: 20, fontWeight: '700', textAlign: 'right' },

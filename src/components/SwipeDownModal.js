@@ -49,11 +49,10 @@ const SwipeDownModal = ({ visible, onClose, children, maxHeight = '85%' }) => {
           <TouchableWithoutFeedback>
             <Animated.View
               style={[styles.modal, { maxHeight }, { transform: [{ translateY }] }]}
+              {...panResponder.panHandlers}
             >
-              <View {...panResponder.panHandlers}>
-                <View style={styles.handleContainer}>
-                  <View style={styles.handle} />
-                </View>
+              <View style={styles.handleContainer}>
+                <View style={styles.handle} />
               </View>
               {children}
             </Animated.View>
@@ -77,13 +76,13 @@ const styles = StyleSheet.create({
   },
   handleContainer: {
     alignItems: 'center',
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 48,
+    height: 5,
+    borderRadius: 3,
     backgroundColor: colors.border,
   },
 });

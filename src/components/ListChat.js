@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, FlatList, TextInput,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
-  Animated, PanResponder, Dimensions,
+  Animated, PanResponder, Dimensions, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -158,10 +158,10 @@ const ListChat = ({ visible, onClose, listId }) => {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeHeaderBtn}>
-              <Ionicons name="arrow-forward" size={22} color={colors.text} />
+              <Ionicons name="close-circle" size={28} color={colors.primary} />
             </TouchableOpacity>
             <Text style={styles.title}>צ'אט רשימה</Text>
-            <View style={{ width: 36 }} />
+            <View style={{ width: 40 }} />
           </View>
 
           {/* Messages */}
@@ -225,6 +225,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
   },
   handleContainer: {
     alignItems: 'center',
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   closeHeaderBtn: {
-    padding: spacing.xs,
+    padding: spacing.sm,
   },
   title: {
     fontSize: 16,
