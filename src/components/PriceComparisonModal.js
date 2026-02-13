@@ -32,10 +32,36 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
     }
   };
 
+  // Re-sort chains: full-coverage first (by price), then partial coverage (by item count desc, then price)
+  const sortedChains = React.useMemo(() => {
+    if (!comparison?.chains) return [];
+    const chains = [...comparison.chains];
+    const totalItems = comparison.totalItems || 0;
+
+    chains.sort((a, b) => {
+      const aMissing = a.missingCount || 0;
+      const bMissing = b.missingCount || 0;
+      const aFull = aMissing === 0;
+      const bFull = bMissing === 0;
+
+      // Full coverage chains first
+      if (aFull && !bFull) return -1;
+      if (!aFull && bFull) return 1;
+
+      // Among same coverage level, sort by item count desc then total asc
+      if (a.itemCount !== b.itemCount) return b.itemCount - a.itemCount;
+      return a.total - b.total;
+    });
+    return chains;
+  }, [comparison]);
+
+  // The real cheapest is the first chain with full coverage, or the one with most items + lowest price
+  const realCheapest = sortedChains.length > 0 ? sortedChains[0] : null;
+
   const hasBestMix = comparison?.bestMix && comparison.bestMix.storeCount > 1;
 
   return (
-    <SwipeDownModal visible={visible} onClose={onClose} maxHeight="90%">
+    <SwipeDownModal visible={visible} onClose={onClose} maxHeight="90%" centered>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>השוואת מחירים</Text>
@@ -101,30 +127,46 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
 
             {activeTab === 'stores' ? (
               <>
-                {comparison.cheapest && (
+                {realCheapest && (
                   <View style={styles.winnerCard}>
                     <View style={styles.winnerIcon}>
                       <Ionicons name="trophy" size={24} color="#f59e0b" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.winnerLabel}>הרשת הזולה ביותר</Text>
-                      <Text style={styles.winnerName}>{comparison.cheapest.chain_name}</Text>
+                      <Text style={styles.winnerLabel}>
+                        {(realCheapest.missingCount || 0) === 0
+                          ? 'הרשת הזולה ביותר'
+                          : 'הרשת הטובה ביותר (הכי הרבה פריטים + הכי זול)'}
+                      </Text>
+                      <Text style={styles.winnerName}>{realCheapest.chain_name}</Text>
+                      {(realCheapest.missingCount || 0) > 0 && (
+                        <Text style={styles.winnerMissing}>
+                          {realCheapest.missingCount} פריטים חסרים
+                        </Text>
+                      )}
                     </View>
-                    <Text style={styles.winnerPrice}>₪{comparison.cheapest.total?.toFixed(2)}</Text>
+                    <Text style={styles.winnerPrice}>₪{realCheapest.total?.toFixed(2)}</Text>
                   </View>
                 )}
 
-                {comparison.chains?.map((chain, index) => {
-                  const isCheapest = index === 0 && comparison.chains.length > 1;
-                  const diff = comparison.cheapest ? chain.total - comparison.cheapest.total : 0;
+                {sortedChains.map((chain, index) => {
+                  const isCheapest = realCheapest && (chain.chain_id || chain.chain_name) === (realCheapest.chain_id || realCheapest.chain_name);
+                  const diff = realCheapest ? chain.total - realCheapest.total : 0;
+                  const hasMissing = (chain.missingCount || 0) > 0;
 
                   return (
-                    <View key={chain.chain_id || index} style={[styles.chainCard, isCheapest && styles.chainCardCheapest]}>
+                    <View key={chain.chain_id || index} style={[styles.chainCard, isCheapest && styles.chainCardCheapest, hasMissing && !isCheapest && styles.chainCardMissing]}>
                       <View style={styles.chainHeader}>
                         <View style={styles.chainNameRow}>
                           <Text style={styles.chainRank}>#{index + 1}</Text>
                           <Text style={styles.chainName}>{chain.chain_name}</Text>
                           {isCheapest && <Ionicons name="checkmark-circle" size={16} color={colors.success} />}
+                          {hasMissing && (
+                            <View style={styles.missingBadge}>
+                              <Ionicons name="warning" size={12} color={colors.warning} />
+                              <Text style={styles.missingBadgeText}>חסרים {chain.missingCount}</Text>
+                            </View>
+                          )}
                         </View>
                         <View style={{ alignItems: 'flex-start' }}>
                           <Text style={[styles.chainTotal, isCheapest && styles.chainTotalCheapest]}>
@@ -138,9 +180,9 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
 
                       <View style={styles.chainMeta}>
                         <Text style={styles.chainMetaText}>
-                          {chain.itemCount} פריטים זמינים
+                          {chain.itemCount} מתוך {comparison.totalItems} פריטים זמינים
                         </Text>
-                        {chain.missingCount > 0 && (
+                        {hasMissing && (
                           <Text style={styles.chainMissing}>
                             {chain.missingCount} חסרים
                           </Text>
@@ -163,7 +205,7 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
 
                       {chain.missing?.length > 0 && (
                         <View style={styles.missingSection}>
-                          <Text style={styles.missingTitle}>חסרים ({chain.missing.length})</Text>
+                          <Text style={styles.missingTitle}>פריטים חסרים ({chain.missing.length})</Text>
                           {chain.missing.map((name, idx) => (
                             <Text key={idx} style={styles.missingItem}>• {name}</Text>
                           ))}
@@ -225,7 +267,7 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
               </>
             )}
 
-            {(!comparison.chains || comparison.chains.length === 0) && (
+            {(!sortedChains || sortedChains.length === 0) && (
               <View style={styles.emptyContainer}>
                 <Ionicons name="search-outline" size={48} color={colors.textMuted} style={{ opacity: 0.4 }} />
                 <Text style={styles.emptyText}>לא נמצאו מחירים לפריטים ברשימה</Text>
@@ -345,6 +387,7 @@ const styles = StyleSheet.create({
   winnerLabel: { fontSize: 11, color: colors.textMuted },
   winnerName: { fontSize: 16, fontWeight: '700' },
   winnerPrice: { fontSize: 20, fontWeight: '700', color: colors.success },
+  winnerMissing: { fontSize: 11, color: colors.warning, fontWeight: '500', marginTop: 2 },
 
   // Chain card
   chainCard: {
@@ -359,6 +402,24 @@ const styles = StyleSheet.create({
     borderColor: colors.success,
     borderWidth: 2,
     backgroundColor: colors.success + '08',
+  },
+  chainCardMissing: {
+    borderColor: colors.warning + '50',
+    backgroundColor: colors.warning + '05',
+  },
+  missingBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.warning + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  missingBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.warning,
   },
   chainHeader: {
     flexDirection: 'row-reverse',

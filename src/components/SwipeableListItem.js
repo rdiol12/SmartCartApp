@@ -4,43 +4,67 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, radius } from '../theme';
 
+const SWIPE_THRESHOLD = 60;
+const MAX_SWIPE = 80;
+
 const SwipeableListItem = ({ children, onDelete, onCheck, isChecked }) => {
   const pan = useRef(new Animated.Value(0)).current;
+  const isOpen = useRef(false);
+
+  const resetPosition = () => {
+    isOpen.current = false;
+    Animated.spring(pan, {
+      toValue: 0,
+      useNativeDriver: false,
+      friction: 8,
+    }).start();
+  };
+
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 10,
-      onPanResponderMove: (_, gestureState) => {
-        // Only allow swipe left (negative dx)
-        if (gestureState.dx < 0) {
-          pan.setValue(Math.max(gestureState.dx, -150));
-        } else if (gestureState.dx > 0) {
-          pan.setValue(Math.min(gestureState.dx, 150));
+      // Don't steal the touch on start — let taps pass through to children
+      onStartShouldSetPanResponder: () => false,
+      // Only claim the gesture when there's clear horizontal movement
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderGrant: () => {
+        // If open, close it first
+        if (isOpen.current) {
+          resetPosition();
         }
       },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -80) {
+      onPanResponderMove: (_, gs) => {
+        if (gs.dx < 0) {
+          // Swipe left (delete)
+          pan.setValue(Math.max(gs.dx, -MAX_SWIPE));
+        } else if (gs.dx > 0) {
+          // Swipe right (check)
+          pan.setValue(Math.min(gs.dx, MAX_SWIPE));
+        }
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -SWIPE_THRESHOLD) {
           // Swiped left far enough - show delete
+          isOpen.current = true;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.spring(pan, {
-            toValue: -150,
+            toValue: -MAX_SWIPE,
             useNativeDriver: false,
+            friction: 8,
           }).start();
-        } else if (gestureState.dx > 80) {
+        } else if (gs.dx > SWIPE_THRESHOLD) {
           // Swiped right far enough - trigger check
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           onCheck?.();
-          Animated.spring(pan, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
+          resetPosition();
         } else {
           // Snap back
-          Animated.spring(pan, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
+          resetPosition();
         }
+      },
+      onPanResponderTerminate: () => {
+        // Gesture was interrupted — snap back so it doesn't get stuck
+        resetPosition();
       },
     })
   ).current;
@@ -99,7 +123,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: 150,
+    width: MAX_SWIPE,
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
@@ -108,13 +132,13 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 150,
+    width: MAX_SWIPE,
     flexDirection: 'row',
     justifyContent: 'flex-start',
   },
   deleteBtn: {
     backgroundColor: colors.danger,
-    width: 80,
+    width: MAX_SWIPE,
     justifyContent: 'center',
     alignItems: 'center',
     borderTopLeftRadius: radius.md,
@@ -122,7 +146,7 @@ const styles = StyleSheet.create({
   },
   checkBtn: {
     backgroundColor: colors.success,
-    width: 80,
+    width: MAX_SWIPE,
     justifyContent: 'center',
     alignItems: 'center',
     borderTopRightRadius: radius.md,

@@ -64,8 +64,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   body: {
-    minHeight: 200,
-    maxHeight: 400,
+    flex: 1,
     paddingHorizontal: spacing.lg,
   },
   closeBtn: {

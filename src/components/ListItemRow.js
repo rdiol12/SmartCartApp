@@ -10,7 +10,7 @@ import { getCategoryIcon, getCategoryColor } from '../utils/categories';
 import SwipeableListItem from './SwipeableListItem';
 import ReorderControls from './ReorderControls';
 
-const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, members = [], reorderMode = false, onMoveUp, onMoveDown, isFirst = false, isLast = false }) => {
+const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, onToggle, members = [], reorderMode = false, onMoveUp, onMoveDown, isFirst = false, isLast = false }) => {
   const { user } = useContext(AuthContext);
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -44,12 +44,16 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
 
   const handleToggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    socket.emit('toggle_item', { itemId: item.id, listId, isChecked: !item.is_checked });
+    if (onToggle) {
+      onToggle(item.id, !item.is_checked);
+    } else {
+      socket.emit('toggle_item', { itemId: item.id, listId, isChecked: !item.is_checked, userId: user.id });
+    }
   };
 
   const handleDelete = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    socket.emit('delete_item', { itemId: item.id, listId });
+    socket.emit('delete_item', { itemId: item.id, listId, userId: user.id });
   };
 
   const handleMarkPaid = () => {
@@ -313,6 +317,11 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
             {item.added_by_name && (
               <Text style={styles.metaText}>
                 {item.added_by_name}
+              </Text>
+            )}
+            {isChecked && !isPaid && item.checked_by_name && (
+              <Text style={[styles.metaText, { color: colors.primary, fontWeight: '500' }]}>
+                נקנה ע"י {item.checked_by_name}
               </Text>
             )}
             {isPaid && (

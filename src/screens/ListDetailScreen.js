@@ -147,8 +147,13 @@ export default function ListDetailScreen({ route, navigation }) {
     const onReceiveItem = (newItem) => {
       setItems((prev) => [newItem, ...prev]);
     };
-    const onItemStatusChanged = ({ itemId, isChecked }) => {
-      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, is_checked: isChecked } : i)));
+    const onItemStatusChanged = ({ itemId, isChecked, checkedBy, checkedByName }) => {
+      setItems((prev) => prev.map((i) => (i.id === itemId ? {
+        ...i,
+        is_checked: isChecked,
+        checked_by: checkedBy || null,
+        checked_by_name: checkedByName || null,
+      } : i)));
     };
     const onItemDeleted = ({ itemId }) => {
       setItems((prev) => prev.filter((i) => i.id !== itemId));
@@ -296,15 +301,26 @@ export default function ListDetailScreen({ route, navigation }) {
 
   const handleMultiSelectDelete = () => {
     selectedItems.forEach(itemId => {
-      socket.emit('delete_item', { itemId, listId });
+      socket.emit('delete_item', { itemId, listId, userId: user.id });
     });
     setSelectedItems([]);
     setMultiSelectMode(false);
   };
 
+  const handleToggleItem = useCallback((itemId, newChecked) => {
+    // Optimistic local update — UI updates instantly with user info
+    setItems((prev) => prev.map((i) => (i.id === itemId ? {
+      ...i,
+      is_checked: newChecked,
+      checked_by: newChecked ? user.id : null,
+      checked_by_name: newChecked ? user.first_name : null,
+    } : i)));
+    socket.emit('toggle_item', { itemId, listId, isChecked: newChecked, userId: user.id });
+  }, [listId, user]);
+
   const handleMultiSelectCheck = () => {
     selectedItems.forEach(itemId => {
-      socket.emit('toggle_item', { itemId, listId, isChecked: true });
+      handleToggleItem(itemId, true);
     });
     setSelectedItems([]);
     setMultiSelectMode(false);
@@ -312,7 +328,7 @@ export default function ListDetailScreen({ route, navigation }) {
 
   const handleMultiSelectUncheck = () => {
     selectedItems.forEach(itemId => {
-      socket.emit('toggle_item', { itemId, listId, isChecked: false });
+      handleToggleItem(itemId, false);
     });
     setSelectedItems([]);
     setMultiSelectMode(false);
@@ -740,6 +756,7 @@ export default function ListDetailScreen({ route, navigation }) {
                 multiSelectMode={multiSelectMode}
                 isSelected={selectedItems.includes(item.id)}
                 onSelect={toggleItemSelection}
+                onToggle={handleToggleItem}
                 members={members}
                 reorderMode={reorderMode}
                 onMoveUp={() => handleMoveItem(item.id, 'up')}
