@@ -144,6 +144,17 @@ export default function ListDetailScreen({ route, navigation }) {
 
     socket.emit('join_list', listId);
 
+    // Rejoin room on reconnection (server restart, network drop, etc.)
+    const onReconnect = () => {
+      socket.emit('join_list', listId);
+      // Re-fetch items to sync any missed changes
+      api.get(`/api/lists/${listId}/items`).then(({ data }) => {
+        setItems(data.items);
+        setMembers(data.members);
+      }).catch(() => {});
+    };
+    socket.on('connect', onReconnect);
+
     const onReceiveItem = (newItem) => {
       setItems((prev) => [newItem, ...prev]);
     };
@@ -195,6 +206,7 @@ export default function ListDetailScreen({ route, navigation }) {
     socket.on('items_reordered', onItemsReordered);
 
     return () => {
+      socket.off('connect', onReconnect);
       socket.off('receive_item', onReceiveItem);
       socket.off('item_status_changed', onItemStatusChanged);
       socket.off('item_deleted', onItemDeleted);
@@ -316,6 +328,23 @@ export default function ListDetailScreen({ route, navigation }) {
       checked_by_name: newChecked ? user.first_name : null,
     } : i)));
     socket.emit('toggle_item', { itemId, listId, isChecked: newChecked, userId: user.id });
+  }, [listId, user]);
+
+  const handleMarkPaidItem = useCallback((itemId, currentlyPaid) => {
+    if (currentlyPaid) {
+      // Optimistic unmark
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, paid_by: null, paid_by_name: null, paid_at: null } : i)));
+      socket.emit('unmark_paid', { itemId, listId });
+    } else {
+      // Optimistic mark paid
+      setItems((prev) => prev.map((i) => (i.id === itemId ? {
+        ...i,
+        paid_by: user.id,
+        paid_by_name: user.first_name,
+        paid_at: new Date().toISOString(),
+      } : i)));
+      socket.emit('mark_paid', { itemId, listId, userId: user.id });
+    }
   }, [listId, user]);
 
   const handleMultiSelectCheck = () => {
@@ -757,6 +786,7 @@ export default function ListDetailScreen({ route, navigation }) {
                 isSelected={selectedItems.includes(item.id)}
                 onSelect={toggleItemSelection}
                 onToggle={handleToggleItem}
+                onMarkPaid={handleMarkPaidItem}
                 members={members}
                 reorderMode={reorderMode}
                 onMoveUp={() => handleMoveItem(item.id, 'up')}

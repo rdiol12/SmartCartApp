@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import ActivityTimeline from './ActivityTimeline';
 import SwipeDownModal from './SwipeDownModal';
 import { colors, spacing, radius } from '../theme';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 const ActivityLog = ({ visible, onClose, listId }) => {
   const [activities, setActivities] = useState([]);
@@ -64,7 +66,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   body: {
-    flex: 1,
+    height: SCREEN_HEIGHT * 0.55,
     paddingHorizontal: spacing.lg,
   },
   closeBtn: {

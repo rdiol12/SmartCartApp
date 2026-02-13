@@ -10,7 +10,7 @@ import { getCategoryIcon, getCategoryColor } from '../utils/categories';
 import SwipeableListItem from './SwipeableListItem';
 import ReorderControls from './ReorderControls';
 
-const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, onToggle, members = [], reorderMode = false, onMoveUp, onMoveDown, isFirst = false, isLast = false }) => {
+const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = false, isSelected = false, onSelect, onToggle, onMarkPaid, members = [], reorderMode = false, onMoveUp, onMoveDown, isFirst = false, isLast = false }) => {
   const { user } = useContext(AuthContext);
   const [showComments, setShowComments] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -57,7 +57,9 @@ const ListItemRow = ({ item, listId, shoppingMode = false, multiSelectMode = fal
   };
 
   const handleMarkPaid = () => {
-    if (item.paid_by) {
+    if (onMarkPaid) {
+      onMarkPaid(item.id, !!item.paid_by);
+    } else if (item.paid_by) {
       socket.emit('unmark_paid', { itemId: item.id, listId });
     } else {
       socket.emit('mark_paid', { itemId: item.id, listId, userId: user.id });

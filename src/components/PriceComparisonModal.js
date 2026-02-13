@@ -61,7 +61,7 @@ const PriceComparisonModal = ({ visible, onClose, listId }) => {
   const hasBestMix = comparison?.bestMix && comparison.bestMix.storeCount > 1;
 
   return (
-    <SwipeDownModal visible={visible} onClose={onClose} maxHeight="90%" centered>
+    <SwipeDownModal visible={visible} onClose={onClose} fullScreen>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>השוואת מחירים</Text>
